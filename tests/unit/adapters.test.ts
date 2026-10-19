@@ -50,6 +50,29 @@ describe('ollama', () => {
     await expect(closed.provider.health()).resolves.toMatchObject({ diagnosis: 'unreachable' });
   });
 
+  it('catches an origin block that only applies to POST (Chrome omits Origin on GET)', async () => {
+    const { provider, calls } = makeProvider('ollama', {
+      'GET /api/version': () => json({ version: '0.12.6' }),
+      'POST /api/show': () => new Response(null, { status: 403 }),
+    });
+    await expect(provider.health()).resolves.toMatchObject({
+      ok: false,
+      diagnosis: 'origin-blocked',
+    });
+    expect(calls.map((c) => `${c.method} ${new URL(c.url).pathname}`)).toEqual([
+      'GET /api/version',
+      'POST /api/show',
+    ]);
+  });
+
+  it('treats the probe’s 404 as healthy', async () => {
+    const { provider } = makeProvider('ollama', {
+      'GET /api/version': () => json({ version: '0.12.6' }),
+      'POST /api/show': () => json({ error: "model '__tether_origin_probe__' not found" }, 404),
+    });
+    await expect(provider.health()).resolves.toMatchObject({ ok: true });
+  });
+
   it('flags a port that answers with something that is not Ollama', async () => {
     const { provider } = makeProvider('ollama', { 'GET /api/version': () => json({ hi: 1 }) });
     await expect(provider.health()).resolves.toMatchObject({ diagnosis: 'bad-response' });

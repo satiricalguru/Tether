@@ -243,6 +243,18 @@ export function createOllama(config: ProviderConfig, deps: AdapterDeps): Provide
           timeoutMs: HEALTH_TIMEOUT_MS,
         })) as { version?: unknown };
         if (typeof json.version !== 'string') throw new WrongServerError('Ollama');
+        // Chrome only sends the extension's Origin header on POST, so a GET
+        // can succeed while every chat is rejected by OLLAMA_ORIGINS. Probe
+        // with a cheap POST: 404 "model not found" means the origin is allowed.
+        try {
+          await http.request(`${base}/api/show`, {
+            method: 'POST',
+            body: JSON.stringify({ model: '__tether_origin_probe__' }),
+            timeoutMs: HEALTH_TIMEOUT_MS,
+          });
+        } catch (err) {
+          if (err instanceof ProviderError && err.code === 'E_ORIGIN_BLOCKED') throw err;
+        }
         return json.version;
       }),
 
