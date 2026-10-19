@@ -106,12 +106,15 @@ function QuickPrompt() {
           }}
         />
         <div className="flex justify-end">
+          {/* Distinct keys: if React reused one <button> for both, a Stop click
+              that settles the stream mid-event would flip it to type=submit
+              and the browser would submit the form, resending the prompt. */}
           {running ? (
-            <Button type="button" variant="danger" size="sm" onClick={stop}>
+            <Button key="stop" type="button" variant="danger" size="sm" onClick={stop}>
               <Square /> Stop
             </Button>
           ) : (
-            <Button type="submit" size="sm" disabled={!ready || !prompt.trim()}>
+            <Button key="send" type="submit" size="sm" disabled={!ready || !prompt.trim()}>
               <Send /> Send
             </Button>
           )}
