@@ -91,17 +91,16 @@ test.describe('real Ollama', () => {
     await page.goto(extensionUrl('sidepanel.html'));
     await expect(page.getByTestId('model-picker')).toContainText(MODEL, { timeout: 20_000 });
 
-    await page.getByLabel('Prompt').fill('Reply with exactly: Tether works');
-    await page.getByRole('button', { name: 'Send' }).click();
+    await page.getByLabel('Message', { exact: true }).fill('Reply with exactly: Tether works');
+    await page.getByRole('button', { name: 'Send', exact: true }).click();
+    const reply = page.getByTestId('msg-assistant');
     // Cold load first: the watchdog must say so rather than look hung.
-    await expect(page.getByTestId('run-status')).toHaveAttribute('data-status', 'loading-model', {
+    await expect(page.getByTestId('msg-status')).toHaveAttribute('data-status', 'loading-model', {
       timeout: 15_000,
     });
-    await expect(page.getByTestId('run-output')).toHaveAttribute('data-phase', 'done', {
-      timeout: 180_000,
-    });
-    await expect(page.getByTestId('run-text')).toContainText('Tether works');
-    const metrics = page.getByTestId('metrics');
+    await expect(reply).toHaveAttribute('data-status', 'done', { timeout: 180_000 });
+    await expect(reply.getByTestId('markdown')).toContainText('Tether works');
+    const metrics = reply.getByTestId('metrics');
     for (const label of ['TTFT', 'tok/s', 'prompt', 'context', 'load']) {
       await expect(metrics).toContainText(label);
     }
@@ -122,5 +121,40 @@ test.describe('real Ollama', () => {
     expect(typeof model?.capabilities?.contextLength).toBe('number');
     // The footer reports the window Ollama is actually running, not the model max.
     await expect(metrics).toContainText('model max');
+  });
+
+  test('multi-turn chat remembers earlier turns and keeps thinking out of the answer', async ({
+    page,
+    context,
+    extensionUrl,
+    serviceWorker,
+  }) => {
+    await configureProviders(serviceWorker, [
+      { instanceId: 'ollama', kind: 'ollama', label: 'Ollama', baseUrl: TEMP },
+    ]);
+    const options = await context.newPage();
+    await options.goto(extensionUrl('options.html#chat'));
+    await options.locator('input[name="reasoning"][value="on"]').check();
+    await options.close();
+
+    await page.goto(extensionUrl('sidepanel.html'));
+    await expect(page.getByTestId('model-picker')).toContainText(MODEL, { timeout: 20_000 });
+    const msg = page.getByLabel('Message', { exact: true });
+    const replies = page.getByTestId('msg-assistant');
+
+    await msg.fill('Remember this number: 7341. Reply only with "OK".');
+    await page.getByRole('button', { name: 'Send', exact: true }).click();
+    await expect(replies.first()).toHaveAttribute('data-status', 'done', { timeout: 180_000 });
+
+    await msg.fill('What number did I ask you to remember? Reply with just the number.');
+    await page.getByRole('button', { name: 'Send', exact: true }).click();
+    await expect(replies.nth(1)).toHaveAttribute('data-status', 'done', { timeout: 180_000 });
+    await expect(replies.nth(1).getByTestId('markdown')).toContainText('7341');
+
+    // Thinking was requested, arrives separately, and stays out of the answer text.
+    await expect(replies.nth(1).getByTestId('reasoning-toggle')).toBeVisible();
+    await expect(replies.nth(1).getByTestId('markdown')).not.toContainText('<think>');
+    console.log('real answer:', await replies.nth(1).getByTestId('markdown').textContent());
+    console.log('real metrics:', await replies.nth(1).getByTestId('metrics').textContent());
   });
 });
