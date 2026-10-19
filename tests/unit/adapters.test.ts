@@ -622,3 +622,87 @@ describe('llama.cpp', () => {
     expect(llamaCapabilities({ chat_template: '{{ messages }}' }).nativeTools).toBe(false);
   });
 });
+
+/** Byte-for-byte captures from Ollama 0.40.6 running ornith-1.5:9b (Q4_K_M). */
+describe('real Ollama captures', () => {
+  const real = (name: string) => () => streamResponse(fixtureBytes(name), { cuts: [11, 97, 503] });
+
+  it('native chat without thinking', async () => {
+    const { provider } = makeProvider('ollama', {
+      'POST /api/chat': real('real-ollama-chat-nothink.ndjson'),
+    });
+    const chunks = await collect(provider.chat(REQ, signal()));
+    expect(textOf(chunks)).toBe('Hello there, wonderful friend!');
+    expect(finishOf(chunks)).toMatchObject({
+      reason: 'stop',
+      usage: { promptTokens: 19, completionTokens: 7 },
+    });
+    expect(finishOf(chunks).usage.tokensPerSecond).toBeCloseTo(7 / 0.408978, 3);
+  });
+
+  it('native thinking arrives in message.thinking and stays out of the text', async () => {
+    const { provider } = makeProvider('ollama', {
+      'POST /api/chat': real('real-ollama-chat-think.ndjson'),
+    });
+    const chunks = await collect(provider.chat({ ...REQ, think: true }, signal()));
+    expect(reasoningOf(chunks)).toMatch(/^The user is asking/);
+    expect(textOf(chunks)).toBe('51');
+  });
+
+  it('native tool call keeps the server-assigned id', async () => {
+    const { provider } = makeProvider('ollama', {
+      'POST /api/chat': real('real-ollama-chat-tools.ndjson'),
+    });
+    const chunks = await collect(provider.chat(REQ, signal()));
+    expect(chunks.find((c) => c.type === 'tool_calls')).toEqual({
+      type: 'tool_calls',
+      calls: [{ id: 'aW7hVaT0SaIG65u7b3awOGt2CZvZ0GvU', name: 'click', arguments: '{"id":42}' }],
+    });
+    expect(finishOf(chunks).reason).toBe('tool_calls');
+  });
+
+  it('OpenAI-compatible path reads usage and llama.cpp-style timings', async () => {
+    const { provider } = makeProvider(
+      'ollama',
+      { 'POST /v1/chat/completions': real('real-ollama-v1-sse.sse') },
+      { useOpenAICompat: true },
+    );
+    const chunks = await collect(provider.chat(REQ, signal()));
+    expect(textOf(chunks)).toBe('Hello there, wonderful friend!');
+    expect(finishOf(chunks).usage).toMatchObject({
+      promptTokens: 19,
+      completionTokens: 7,
+      tokensPerSecond: 18.276762402088774,
+    });
+  });
+
+  it('OpenAI-compatible tool call', async () => {
+    const { provider } = makeProvider(
+      'ollama',
+      { 'POST /v1/chat/completions': real('real-ollama-v1-tools.sse') },
+      { useOpenAICompat: true },
+    );
+    const chunks = await collect(provider.chat(REQ, signal()));
+    expect(chunks.find((c) => c.type === 'tool_calls')).toEqual({
+      type: 'tool_calls',
+      calls: [{ id: '1no0yWTrG6seyq6BSIt3xDElOFAiZCc1', name: 'click', arguments: '{"id":42}' }],
+    });
+  });
+
+  it('reads capabilities from a real /api/show shape', () => {
+    expect(
+      capabilitiesFromShow({
+        capabilities: ['tools', 'thinking', 'completion', 'vision'],
+        details: { quantization_level: 'Q4_K_M', parameter_size: '9.0B' },
+        model_info: { 'general.architecture': 'qwen35', 'qwen35.context_length': 262144 },
+        projector_info: {},
+      }),
+    ).toMatchObject({
+      nativeTools: true,
+      thinking: true,
+      vision: true,
+      contextLength: 262144,
+      quantization: 'Q4_K_M',
+    });
+  });
+});

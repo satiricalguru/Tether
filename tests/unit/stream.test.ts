@@ -8,12 +8,17 @@ const SSE_FIXTURES = [
   'vllm-sse-tools.sse',
   'openai-sse-untagged-think.sse',
   'sse-crlf-comments.sse',
+  // Captured from a real Ollama 0.40.6 (ornith-1.5:9b).
+  'real-ollama-v1-sse.sse',
+  'real-ollama-v1-tools.sse',
 ];
 const NDJSON_FIXTURES = [
   'ollama-chat-basic.ndjson',
   'ollama-chat-tools.ndjson',
   'ollama-chat-thinking.ndjson',
   'ollama-chat-error.ndjson',
+  'real-ollama-chat-nothink.ndjson',
+  'real-ollama-chat-think.ndjson',
 ];
 
 describe('SseParser', () => {

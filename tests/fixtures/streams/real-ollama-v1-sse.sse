@@ -1,0 +1,18 @@
+data: {"id":"chatcmpl-574","object":"chat.completion.chunk","created":1792419311,"model":"ornith-1.5:9b","system_fingerprint":"fp_ollama","choices":[{"index":0,"delta":{"role":"assistant","content":"Hello"},"finish_reason":null}]}
+
+data: {"id":"chatcmpl-574","object":"chat.completion.chunk","created":1792419311,"model":"ornith-1.5:9b","system_fingerprint":"fp_ollama","choices":[{"index":0,"delta":{"content":" there"},"finish_reason":null}]}
+
+data: {"id":"chatcmpl-574","object":"chat.completion.chunk","created":1792419311,"model":"ornith-1.5:9b","system_fingerprint":"fp_ollama","choices":[{"index":0,"delta":{"content":","},"finish_reason":null}]}
+
+data: {"id":"chatcmpl-574","object":"chat.completion.chunk","created":1792419311,"model":"ornith-1.5:9b","system_fingerprint":"fp_ollama","choices":[{"index":0,"delta":{"content":" wonderful"},"finish_reason":null}]}
+
+data: {"id":"chatcmpl-574","object":"chat.completion.chunk","created":1792419311,"model":"ornith-1.5:9b","system_fingerprint":"fp_ollama","choices":[{"index":0,"delta":{"content":" friend"},"finish_reason":null}]}
+
+data: {"id":"chatcmpl-574","object":"chat.completion.chunk","created":1792419311,"model":"ornith-1.5:9b","system_fingerprint":"fp_ollama","choices":[{"index":0,"delta":{"content":"!"},"finish_reason":null}]}
+
+data: {"id":"chatcmpl-574","object":"chat.completion.chunk","created":1792419311,"model":"ornith-1.5:9b","system_fingerprint":"fp_ollama","choices":[{"index":0,"delta":{},"finish_reason":"stop"}]}
+
+data: {"id":"chatcmpl-574","object":"chat.completion.chunk","created":1792419311,"model":"ornith-1.5:9b","system_fingerprint":"fp_ollama","choices":[],"usage":{"prompt_tokens":19,"prompt_tokens_details":{"cached_tokens":15},"completion_tokens":7,"total_tokens":26},"timings":{"prompt_n":19,"prompt_ms":129,"prompt_per_token_ms":6.7894736842105265,"prompt_per_second":147.28682170542635,"predicted_n":7,"predicted_ms":383,"predicted_per_token_ms":54.714285714285715,"predicted_per_second":18.276762402088774}}
+
+data: [DONE]
+

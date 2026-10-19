@@ -1,0 +1,7 @@
+{"model":"ornith-1.5:9b","created_at":"2026-10-19T14:15:03.452232Z","message":{"role":"assistant","content":"Hello"},"done":false}
+{"model":"ornith-1.5:9b","created_at":"2026-10-19T14:15:03.516445Z","message":{"role":"assistant","content":" there"},"done":false}
+{"model":"ornith-1.5:9b","created_at":"2026-10-19T14:15:03.580986Z","message":{"role":"assistant","content":","},"done":false}
+{"model":"ornith-1.5:9b","created_at":"2026-10-19T14:15:03.647594Z","message":{"role":"assistant","content":" wonderful"},"done":false}
+{"model":"ornith-1.5:9b","created_at":"2026-10-19T14:15:03.720415Z","message":{"role":"assistant","content":" friend"},"done":false}
+{"model":"ornith-1.5:9b","created_at":"2026-10-19T14:15:03.791Z","message":{"role":"assistant","content":"!"},"done":false}
+{"model":"ornith-1.5:9b","created_at":"2026-10-19T14:15:03.861178Z","message":{"role":"assistant","content":""},"done":true,"done_reason":"stop","total_duration":807809000,"load_duration":4825959,"prompt_eval_count":19,"prompt_eval_cached_count":0,"prompt_eval_duration":344792000,"eval_count":7,"eval_duration":408978000}
