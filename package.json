@@ -23,8 +23,9 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "e2e": "wxt build && playwright test",
-    "check": "pnpm lint && pnpm typecheck && pnpm test && pnpm build",
-    "mock-llm": "node --experimental-strip-types tests/fixtures/mock-llm/cli.ts"
+    "check": "pnpm lint && pnpm typecheck && pnpm test && pnpm build && pnpm test:bundle",
+    "mock-llm": "node --experimental-strip-types tests/fixtures/mock-llm/cli.ts",
+    "test:bundle": "vitest run --config vitest.bundle.config.ts"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.104.4",
