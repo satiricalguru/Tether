@@ -22,6 +22,19 @@ reasoning. Newest entries at the bottom of each section.
   the toolbar button, so tests assert the action is configured to open the
   panel (`getPanelBehavior`) and exercise the panel page directly.
 
+- **Built-in endpoints are disabled, not deleted.** Ollama, LM Studio,
+  llama.cpp and vLLM always exist in settings (re-added by sanitization if
+  missing); custom endpoints can be removed.
+- **LM Studio has no grammar support** in Tether: its OpenAI endpoint takes
+  `response_format: json_schema` but no GBNF parameter. Spec §4.1 lists it
+  among grammar backends; the capability is reported as `false`.
+- **llama.cpp context length is `n_ctx`** (what the server allocated), not
+  the model's trained maximum, because that is the limit requests hit.
+- **No real model runs in this environment** (no Ollama/LM Studio
+  installed), so the stream fixture corpus in `tests/fixtures/streams` is
+  hand-written to match each server's documented wire format, including
+  usage/timings blocks, tool-call deltas and multi-byte text.
+
 ## Architecture decisions
 
 ### ADR-001 Content script is injected on demand, not declared for all sites
@@ -89,3 +102,72 @@ baked in at build time. Found by the E2E suite, not assumed.
 | `vitest`, `jsdom`, `fake-indexeddb`, `@testing-library/react` | Unit tests; WXT's `fakeBrowser` covers extension APIs.                                        |
 | `@playwright/test`                                            | Fixed by spec.                                                                                |
 | `@types/chrome`                                               | Only for `chrome.*` inside Playwright `evaluate()` callbacks; source code uses `wxt/browser`. |
+
+### ADR-008 Ollama health check includes a POST origin probe
+
+Verified in real Chromium (E2E): Chrome sends the extension's `Origin`
+header from the service worker on **POST only, not GET**. Ollama's
+`OLLAMA_ORIGINS` check therefore lets `GET /api/version` through and
+rejects `POST /api/chat` with an empty 403. The Ollama health check follows
+the GET with `POST /api/show` for a model that doesn't exist: 404 means the
+origin is allowed, 403 means blocked. Without this the Doctor would report
+"Connected" for a server that refuses every chat.
+
+### ADR-009 One guarded HTTP client; discovery widens it only while probing
+
+`HttpClient` refuses origins outside configured endpoints + the fixed
+discovery ports. `discover()` adds its candidates' origins before probing
+(probing _is_ contacting). Non-local origins also need a granted host
+permission, checked before any socket is opened.
+
+### ADR-010 Capability downgrades are persisted per (endpoint, model)
+
+Generic OpenAI servers can't be probed, so capabilities start optimistic.
+A 400/422 (or llama.cpp's 500 "requires --jinja") on a request carrying
+`tools`, unless the message is about context length, persists
+`nativeTools:false` and raises `E_TOOLS_UNSUPPORTED` for the Phase 4
+harness to fall back to tier 2/3. `stream_options` rejections persist
+`streamUsage:false` and retry once. Stored in `chrome.storage.local`
+(`tether:capability-overrides`); a "Forget learned limits" button clears
+them per endpoint.
+
+### ADR-011 Tool-call deltas are assembled in the adapter
+
+OpenAI-style servers stream tool calls as fragments; Ollama sends them
+whole. Adapters always emit one complete `tool_calls` chunk, so the tool
+harness never sees partial JSON.
+
+### ADR-012 Inline `<think>` handling lives in the provider layer
+
+`ThinkSplitter` normalizes inline reasoning tags into `reasoning` chunks, so
+every consumer gets the same shape whether the server separates reasoning
+(`message.thinking`, `reasoning_content`) or not. An opening tag counts only
+before visible text, and a closing tag with no opening tag reclassifies the
+text so far (`reclassify-reasoning`), which covers templates that put
+`<think>` in the prompt.
+
+### ADR-013 TTFT watchdog keyed on "was it resident?"
+
+The `chat` stream asks the provider whether the model is loaded
+(`/api/ps`, LM Studio `state`) while the request is in flight. No first
+token after 1.5 s for a known-cold model, or 3 s when unknown, shows
+"Loading model…". A hot model shows "Processing the prompt…" after 5 s.
+Users can tell a cold load from a hang.
+
+### ADR-014 Bundle egress scan runs as its own Vitest config
+
+`tests/bundle/egress.test.ts` needs `.output/`, so it runs after
+`pnpm build` (`pnpm test:bundle`, in `pnpm check` and CI) instead of in the
+unit suite, which must pass without a build.
+
+### ADR-015 Distinct React keys for buttons that swap type
+
+Found by E2E: when Stop (`type=button`) and Send (`type=submit`) shared one
+reconciled `<button>`, settling the stream inside the click flipped the
+element to `type=submit` before the browser's activation behaviour ran, and
+the form resubmitted. Swapping buttons get distinct keys.
+
+### ADR-016 Dependencies added in Phase 1
+
+None. The parsers, HTTP client and mock server use platform APIs only
+(`fetch`, `ReadableStream`, `TextDecoder`, `node:http`).

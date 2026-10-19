@@ -12,18 +12,43 @@ telemetry.
 Works with Ollama, LM Studio, llama.cpp server and any OpenAI-compatible
 local server (vLLM, LocalAI, Jan, KoboldCpp, TabbyAPI, ...).
 
-> **Status: Phase 0 (scaffold).** The extension loads, the side panel and
-> settings page render, and the background ↔ panel streaming path is proven
-> end to end with a transport check. Model providers arrive in Phase 1 and
-> chat in Phase 2. See [Roadmap](#roadmap).
+> **Status: Phase 1 (providers).** Tether finds the model servers running on
+> your machine, tells you exactly how to fix any that can't be reached, lists
+> their models with capabilities, and streams replies with live metrics from a
+> quick prompt in the side panel. Full chat (history, markdown, regenerate)
+> arrives in Phase 2. See [Roadmap](#roadmap).
+
+## Getting started
+
+1. Run a local model server, for example [Ollama](https://ollama.com):
+   `ollama serve` and `ollama pull llama3.2`.
+2. Load Tether (see [Development](#development)) and open the side panel.
+3. If the **Setup Doctor** says _Blocked by origin check_, copy the command
+   it shows. It includes your extension ID. Ollama rejects browser
+   extensions until `OLLAMA_ORIGINS` allows them.
+4. Pick a model and ask something. The footer shows time to first token,
+   tokens/s, prompt tokens, context used and model load time.
+
+Setup, the CORS fix for every OS, and troubleshooting for each backend are in
+[docs/providers.md](docs/providers.md).
 
 ## Privacy guarantee
 
 Tether makes network requests only to the local model endpoints you
 configure. Out of the box it can reach only `localhost`, `127.0.0.1` and
-`[::1]`. All code is bundled; nothing is loaded from a CDN, and the extension
-CSP (`script-src 'self'`) forbids remote code. A test asserting no other hosts
-appear in the built bundle lands with the provider layer in Phase 1.
+`[::1]`. Two layers enforce this:
+
+- **At runtime**, every request goes through one HTTP client that refuses any
+  origin not in your endpoint list (`src/providers/http.ts`). Endpoints on
+  other machines also need a per-origin permission you grant explicitly.
+- **At build time**, `pnpm test:bundle` scans the built extension for URL
+  literals and fails on any host that isn't local. The only exceptions are
+  strings that are never requested (SVG namespace URIs, React's error-decoder
+  link, a license comment), each listed with its reason in
+  `tests/bundle/egress.test.ts`.
+
+All code is bundled; nothing is loaded from a CDN, and the extension CSP
+(`script-src 'self'`) forbids remote code.
 
 ## Development
 
@@ -50,13 +75,28 @@ pnpm lint          # ESLint (strict type-checked), --max-warnings 0
 pnpm typecheck     # tsc --noEmit, strict
 pnpm test          # Vitest unit tests
 pnpm build
+pnpm test:bundle   # zero-egress scan of the built bundle (after build)
 pnpm e2e           # builds, then Playwright with the unpacked extension loaded
-pnpm check         # lint + typecheck + test + build
+pnpm check         # lint + typecheck + test + build + test:bundle
 ```
 
 E2E tests launch Playwright's Chromium (new headless) with the built
-extension in a fresh profile. Run headed with `HEADED=1 pnpm e2e`. Install the
+extension in a fresh profile, against the mock model server. No real model
+is needed. Run headed with `HEADED=1 pnpm e2e`. Install the
 browser once with `pnpm exec playwright install chromium`.
+
+### Mock model server
+
+`tests/fixtures/mock-llm` emulates the Ollama, LM Studio, llama.cpp and
+OpenAI-compatible APIs, including slow first token, cold model loads,
+mid-stream disconnects, 400 on `tools`, and Ollama's origin check. Model-name
+substrings trigger each behaviour (`mock-slow`, `mock-cold`, `mock-disconnect`,
+`mock-notools`, `mock-toolcall`, `mock-think`, `mock-error`). Run it by hand to
+develop the UI without a GPU:
+
+```sh
+pnpm mock-llm --flavor ollama --port 11434
+```
 
 ### Layout
 
@@ -65,6 +105,7 @@ src/
   entrypoints/   background, sidepanel/, options/, content, offscreen/
   background/    background-only handlers (unit-testable)
   lib/           messaging, port streaming, settings, db, logger
+  providers/     backend adapters, stream parsers, registry, setup doctor
   platform/      shims for browser-specific APIs (sidePanel, offscreen)
   components/ui/ vendored shadcn-style primitives
   hooks/         React hooks
