@@ -12,11 +12,11 @@ telemetry.
 Works with Ollama, LM Studio, llama.cpp server and any OpenAI-compatible
 local server (vLLM, LocalAI, Jan, KoboldCpp, TabbyAPI, ...).
 
-> **Status: Phase 1 (providers).** Tether finds the model servers running on
-> your machine, tells you exactly how to fix any that can't be reached, lists
-> their models with capabilities, and streams replies with live metrics from a
-> quick prompt in the side panel. Full chat (history, markdown, regenerate)
-> arrives in Phase 2. See [Roadmap](#roadmap).
+> **Status: Phase 2 (chat).** A side-panel chat you can use every day. It
+> streams Markdown with highlighted code, and supports stop, regenerate,
+> edit-and-resend, branching, searchable history with export, per-chat model
+> and settings, and per-site default models. Page context, highlight-to-ask
+> and the computer-use agent come next. See [Roadmap](#roadmap).
 
 ## Getting started
 
@@ -26,8 +26,26 @@ local server (vLLM, LocalAI, Jan, KoboldCpp, TabbyAPI, ...).
 3. If the **Setup Doctor** says _Blocked by origin check_, copy the command
    it shows. It includes your extension ID. Ollama rejects browser
    extensions until `OLLAMA_ORIGINS` allows them.
-4. Pick a model and ask something. The footer shows time to first token,
+4. Pick a model and chat. Each reply's footer shows time to first token,
    tokens/s, prompt tokens, context used and model load time.
+
+### Chat features
+
+- **Streaming Markdown**, with code highlighted for 20+ languages.
+- **Stop** with the button or **Esc**.
+- **Regenerate** and **edit-and-resend**. Each creates a new version you can
+  page through (`‹ 2/3 ›`).
+- **Branch** any message into a new chat.
+- **Reasoning** from thinking models is collapsed by default and is **never
+  sent back to the model**, which would waste small context windows.
+- **History**: search titles and message text, pin, rename, export to
+  Markdown or JSON, and delete.
+- **Per-chat settings**: model, system prompt, temperature, max tokens.
+  Global defaults live in _Settings → Chat_.
+- **Per-site default model**, e.g. a coding model on `github.com`.
+- **Model replies can't load anything.** Images in replies are never
+  fetched; they render as a link you can choose to open. Links only open on
+  click. Raw HTML renders as text, and nothing is injected with `innerHTML`.
 
 Setup, the CORS fix for every OS, and troubleshooting for each backend are in
 [docs/providers.md](docs/providers.md).
@@ -77,6 +95,7 @@ pnpm test          # Vitest unit tests
 pnpm build
 pnpm test:bundle   # zero-egress scan of the built bundle (after build)
 pnpm e2e           # builds, then Playwright with the unpacked extension loaded
+pnpm e2e:real      # opt-in: same, against your local Ollama (see tests/e2e/real-ollama.spec.ts)
 pnpm check         # lint + typecheck + test + build + test:bundle
 ```
 
@@ -104,6 +123,7 @@ pnpm mock-llm --flavor ollama --port 11434
 src/
   entrypoints/   background, sidepanel/, options/, content, offscreen/
   background/    background-only handlers (unit-testable)
+  chat/          conversation tree, request building, runner, export
   lib/           messaging, port streaming, settings, db, logger
   providers/     backend adapters, stream parsers, registry, setup doctor
   platform/      shims for browser-specific APIs (sidePanel, offscreen)

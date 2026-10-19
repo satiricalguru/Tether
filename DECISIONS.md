@@ -35,6 +35,20 @@ reasoning. Newest entries at the bottom of each section.
   hand-written to match each server's documented wire format, including
   usage/timings blocks, tool-call deltas and multi-byte text.
 
+- **Verified against a real model.** Ollama 0.40.6 with ornith-1.5:9b
+  (Q4_K_M) on an Apple M2 (16 GB): about 8 s cold load, about 15 tok/s,
+  about 0.6 s warm TTFT. Real stream captures live in
+  `tests/fixtures/streams/real-*`.
+- **Ollama 0.40.6 still rejects `chrome-extension://` origins by default**
+  (403 with an empty body on GET and POST). The `OLLAMA_ORIGINS` fix stays
+  necessary.
+- **`num_ctx` defaults to 8192.** Ollama's own default (4096 in 0.40.6) is
+  too small for multi-turn chat with a system prompt. Changing `num_ctx`
+  makes Ollama reload the model once.
+- **Version navigation shows the newest leaf.** Selecting an earlier version
+  of a message descends to that branch's most recent reply, rather than
+  remembering the last one viewed.
+
 ## Architecture decisions
 
 ### ADR-001 Content script is injected on demand, not declared for all sites
@@ -171,3 +185,61 @@ the form resubmitted. Swapping buttons get distinct keys.
 
 None. The parsers, HTTP client and mock server use platform APIs only
 (`fetch`, `ReadableStream`, `TextDecoder`, `node:http`).
+
+### ADR-017 Effective context window, not the model maximum
+
+Found against real Ollama: ornith-1.5:9b advertises 262,144 tokens but runs
+with a 4,096 window unless `num_ctx` is set. `Provider.runtimeContext()`
+(Ollama `/api/ps`, llama.cpp `n_ctx`, LM Studio `loaded_context_length`)
+feeds the metrics. The footer shows the window the request ran with, and the
+model maximum separately.
+
+### ADR-018 Markdown is rendered from tokens, never from HTML
+
+`marked`'s lexer feeds a React renderer. There is no `innerHTML` anywhere.
+Model output is untrusted and the side panel runs with extension
+privileges. Raw HTML renders as text, and links are limited to
+http(s)/mailto with `noopener`. **Images are never loaded**: a remote
+`<img>` would be egress and a tracking pixel, so they render as a chip that
+links out. Code highlighting uses shiki's JavaScript regex engine, so the CSP
+needs no `wasm-unsafe-eval`. Grammars are code-split per language (about
+2–190 KB each, C++ about 850 KB) and loaded on first use. The total bundle
+grew to about 2.9 MB, almost all of it lazy grammar chunks.
+
+### ADR-019 The conversation tree is walked in memory
+
+Messages point at their parent; regenerate and edit create siblings. The
+tree is not indexed by `[conversationId+parentId]`, because IndexedDB can't
+index the `null` root parent. Conversations are small, so all messages of one
+conversation are loaded and walked. Sibling order uses strictly increasing
+per-conversation timestamps.
+
+### ADR-020 The generation runner lives in the panel
+
+The runner writes the reply into IndexedDB (throttled to about 4 writes a
+second, plus a final write). Closing the panel aborts the port, and the
+partial reply is kept as `stopped`. Replies left `streaming` by a crashed
+panel are marked `stopped` on the next open. Background-owned generations
+that survive the panel closing would need background-owned persistence;
+that is revisited for agent runs in Phase 5.
+
+### ADR-021 Reasoning is stored apart and never resent
+
+`MessageRecord.reasoning` holds thinking text; `content` never contains it.
+The request builder only ever reads `content`. Unit tests, mock E2E and the
+real-model E2E all assert that a second turn carries no reasoning.
+
+### ADR-022 Character-based token estimate until Phase 3
+
+Context trimming uses about 3.5 characters per token plus framing. It drops
+the oldest turns first and never drops the system prompt or the latest user
+turn. Phase 3 replaces this with a proper budget, since page context makes
+accuracy matter.
+
+### ADR-023 Dependencies added in Phase 2
+
+| Package             | Why                                                                             |
+| ------------------- | ------------------------------------------------------------------------------- |
+| `marked` ~18.0.14   | Spec choice; lexer only. Pinned below 18.1.x, which was under two weeks old.    |
+| `shiki` ~4.5.0      | Spec choice; core plus the JS regex engine, fine-grained per-language imports.  |
+| `dexie-react-hooks` | Official Dexie binding (`useLiveQuery`), so the UI follows the runner's writes. |
