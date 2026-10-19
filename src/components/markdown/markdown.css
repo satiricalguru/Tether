@@ -1,0 +1,14 @@
+/* Shiki tokens carry both theme colors; pick by the app theme (mirrors globals.css). */
+.md-token {
+  color: var(--sl);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) .md-token {
+    color: var(--sd);
+  }
+}
+
+:root[data-theme='dark'] .md-token {
+  color: var(--sd);
+}
