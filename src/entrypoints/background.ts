@@ -1,6 +1,8 @@
 import { browser } from 'wxt/browser';
 import { defineBackground } from 'wxt/utils/define-background';
+import { createChatStream } from '@/background/chat';
 import { echoStream } from '@/background/echo';
+import { createBackgroundRegistry, providerHandlers, runDiscovery } from '@/background/providers';
 import { KEEPALIVE_ALARM, onKeepaliveAlarm, setKeepalive } from '@/lib/keepalive';
 import { createLogger } from '@/lib/logger';
 import { registerHandlers, sendToTab } from '@/lib/messaging';
@@ -23,7 +25,10 @@ export default defineBackground({
   main() {
     // Listeners must be registered synchronously on every worker start, or
     // events that woke the worker are dropped.
+    const registry = createBackgroundRegistry();
+
     registerHandlers({
+      ...providerHandlers(registry),
       'bg:ping': () => ({
         pong: true,
         version: browser.runtime.getManifest().version,
@@ -44,7 +49,14 @@ export default defineBackground({
     });
 
     registerStreamHandlers(
-      { echo: echoStream },
+      {
+        echo: echoStream,
+        chat: createChatStream({
+          getProvider: (id) => registry.provider(id),
+          contextLength: async (id, model) =>
+            (await registry.capabilities(id, model)).contextLength,
+        }),
+      },
       {
         onActiveChange: (active) => {
           setKeepalive(active > 0).catch((err: unknown) => {
@@ -62,6 +74,12 @@ export default defineBackground({
       log.info('installed', reason);
       // A worker restarted mid-stream may have left the alarm running.
       void setKeepalive(false);
+      // First run: find whatever local servers are already running.
+      if (reason === 'install') {
+        runDiscovery(registry).catch((err: unknown) => {
+          log.warn('first-run discovery failed', err);
+        });
+      }
     });
 
     configurePanelBehavior().catch((err: unknown) => {
