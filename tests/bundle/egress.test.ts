@@ -25,6 +25,18 @@ const NEVER_FETCHED: { pattern: RegExp; reason: string }[] = [
   },
   { pattern: /^https:\/\/tailwindcss\.com$/, reason: 'license banner comment in the CSS' },
   {
+    pattern: /^http:\/\/$/,
+    reason: 'marked prefixes GFM "www." autolinks with a scheme; rendering a link never fetches it',
+  },
+  {
+    pattern: /^https:\/\/github\.com\/markedjs\/marked\.$/,
+    reason: 'marked\'s "please report this" error message',
+  },
+  {
+    pattern: /^(https:\/\/tinyurl\.com\/y2uuvskb|http:\/\/bit\.ly\/2kdckMn)$/,
+    reason: 'Dexie error-message help links',
+  },
+  {
     pattern: /^http:\/\/\$\{\w+\}$/,
     reason:
       'normalizeBaseUrl adds a default scheme to a user-entered URL; where it goes is decided by the runtime allowlist',
