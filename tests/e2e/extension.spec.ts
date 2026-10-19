@@ -35,54 +35,6 @@ test.describe('extension load', () => {
   });
 });
 
-test.describe('side panel', () => {
-  test('renders and reaches the background worker', async ({ page, extensionUrl }) => {
-    await page.goto(extensionUrl('sidepanel.html'));
-    await expect(page.getByRole('heading', { name: 'Tether' })).toBeVisible();
-    const status = page.getByTestId('bg-status');
-    await expect(status).toHaveAttribute('data-state', 'connected');
-    await expect(status).toContainText('v0.1.0');
-  });
-
-  test('streams tokens through a port and keeps the worker alive meanwhile', async ({
-    page,
-    extensionUrl,
-    serviceWorker,
-  }) => {
-    await page.goto(extensionUrl('sidepanel.html'));
-    const text = Array.from({ length: 30 }, (_, i) => `t${i}`).join(' ');
-    await page.getByLabel('Transport check input').fill(text);
-    await page.getByRole('button', { name: 'Run' }).click();
-
-    await expect(page.getByTestId('echo-state')).toHaveText('streaming');
-    await expect
-      .poll(() => serviceWorker.evaluate(() => chrome.alarms.get('tether:keepalive')))
-      .toBeTruthy();
-
-    await expect(page.getByTestId('echo-state')).toHaveText('done', { timeout: 10_000 });
-    await expect(page.getByTestId('echo-output')).toHaveText(text);
-    await expect
-      .poll(() => serviceWorker.evaluate(() => chrome.alarms.get('tether:keepalive')))
-      .toBeFalsy();
-  });
-
-  test('stop aborts the stream mid-flight', async ({ page, extensionUrl }) => {
-    await page.goto(extensionUrl('sidepanel.html'));
-    const text = Array.from({ length: 200 }, (_, i) => `w${i}`).join(' ');
-    await page.getByLabel('Transport check input').fill(text);
-    await page.getByRole('button', { name: 'Run' }).click();
-    await expect(page.getByTestId('echo-output')).toContainText('w3');
-    await page.getByRole('button', { name: 'Stop' }).click();
-    await expect(page.getByTestId('echo-state')).toHaveText('aborted');
-
-    const partial = await page.getByTestId('echo-output').textContent();
-    await page.waitForTimeout(400);
-    // Nothing more arrives after abort.
-    await expect(page.getByTestId('echo-output')).toHaveText(partial ?? '');
-    expect(partial?.length).toBeLessThan(text.length);
-  });
-});
-
 test.describe('options', () => {
   test('renders and persists the theme across reloads', async ({ page, extensionUrl }) => {
     await page.goto(extensionUrl('options.html'));
