@@ -1,4 +1,4 @@
-import { Download, FileJson, Pin, PinOff, Search, Trash2 } from 'lucide-react';
+import { Download, FileJson, Pencil, Pin, PinOff, Search, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import { downloadText, safeFilename, toJson, toMarkdown } from '@/chat/export';
 import { conversationMessages, deleteConversation, updateConversation } from '@/chat/store';
@@ -75,11 +75,6 @@ function Row({ c, active }: { c: ConversationRecord; active: boolean }) {
             onClick={() => {
               openConversation(c.id);
             }}
-            onDoubleClick={() => {
-              setTitle(c.title);
-              setRenaming(true);
-            }}
-            title="Open (double-click to rename)"
           >
             <span className="flex items-center gap-1 truncate text-sm">
               {c.pinned === 1 && (
@@ -102,6 +97,18 @@ function Row({ c, active }: { c: ConversationRecord; active: boolean }) {
               onClick={() => void updateConversation(c.id, { pinned: c.pinned ? 0 : 1 })}
             >
               {c.pinned ? <PinOff /> : <Pin />}
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="size-6 [&_svg]:size-3.5"
+              aria-label="Rename"
+              onClick={() => {
+                setTitle(c.title);
+                setRenaming(true);
+              }}
+            >
+              <Pencil />
             </Button>
             <Button
               variant="ghost"

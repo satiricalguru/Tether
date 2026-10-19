@@ -8,7 +8,6 @@ const IN_PANEL: [string, string][] = [
   ['Enter', 'Send (configurable in Composer above)'],
   ['Shift+Enter', 'New line'],
   ['Esc', 'Stop generating'],
-  ['Double-click a chat in History', 'Rename'],
 ];
 
 export function ShortcutsSection() {
