@@ -108,6 +108,15 @@ with JSON Schema, accurate load/eval timings). Each Ollama endpoint has a
 toggle to use `/v1/chat/completions` instead, for debugging or proxies that
 only speak OpenAI.
 
+### Context window: model maximum vs what Ollama runs
+
+`/api/show` reports the model's trained maximum (262,144 tokens for
+ornith-1.5:9b), but unless a request sets `num_ctx`, Ollama runs the model
+with a much smaller default window (4,096 in 0.40.6, visible in `/api/ps`).
+The metrics footer reports the window the request actually ran with, and
+shows the model maximum separately. Tether's context budgeting uses the
+effective window, so nothing gets silently truncated.
+
 ### Models shown as "hot"
 
 Models in `GET /api/ps` are already in memory and answer immediately. Others
