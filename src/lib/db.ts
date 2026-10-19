@@ -1,4 +1,5 @@
 import Dexie, { type EntityTable } from 'dexie';
+import type { ChatMetrics } from '@/background/chat';
 
 /**
  * IndexedDB schema. Large and append-heavy data lives here; small settings
@@ -7,26 +8,47 @@ import Dexie, { type EntityTable } from 'dexie';
  * Schema changes: add a new `this.version(n)` block, never edit an old one.
  */
 
+/** Per-conversation overrides of the global generation settings. */
+export interface ConversationSettings {
+  systemPrompt?: string;
+  temperature?: number;
+  maxTokens?: number;
+}
+
 export interface ConversationRecord {
   id: string;
   title: string;
   createdAt: number;
   updatedAt: number;
   pinned: 0 | 1; // IndexedDB can't index booleans
-  providerId?: string;
-  model?: string;
+  instanceId: string;
+  model: string;
+  /** Leaf of the visible branch; null for an empty conversation. */
+  activeLeafId: string | null;
+  settings: ConversationSettings;
+  /** Set when the conversation was branched from another one. */
+  branchedFrom?: { conversationId: string; messageId: string };
 }
 
 export type MessageRole = 'system' | 'user' | 'assistant' | 'tool';
+export type MessageStatus = 'streaming' | 'done' | 'stopped' | 'error';
 
 export interface MessageRecord {
   id: string;
   conversationId: string;
-  /** Parent message id; branches share a parent. */
+  /** Parent message id; regenerations and edits are siblings under one parent. */
   parentId: string | null;
   role: MessageRole;
   content: string;
   createdAt: number;
+  /** Model reasoning, kept apart so it is never sent back to the model. */
+  reasoning?: string;
+  status?: MessageStatus;
+  error?: { message: string; code?: string };
+  metrics?: ChatMetrics;
+  /** Which model produced an assistant message. */
+  instanceId?: string;
+  model?: string;
 }
 
 export interface TraceRecord {

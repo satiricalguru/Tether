@@ -12,6 +12,33 @@ import type { ProviderConfig } from '@/providers/types';
 
 export type Theme = 'system' | 'light' | 'dark';
 
+export type ReasoningMode = 'auto' | 'on' | 'off';
+
+export interface GenerationSettings {
+  temperature: number;
+  topP: number;
+  maxTokens: number;
+  /** Context window to request; 0 = server default. */
+  numCtx: number;
+  /** -1 = random. */
+  seed: number;
+}
+
+/** Pick a default model for new chats started on matching sites. */
+export interface SiteRule {
+  /** Hostname or *.suffix, e.g. "github.com", "*.atlassian.net". */
+  pattern: string;
+  instanceId: string;
+  model: string;
+}
+
+export interface ChatPrefs {
+  /** Enter sends; Shift+Enter adds a newline. False swaps them (Ctrl/Cmd+Enter sends). */
+  enterToSend: boolean;
+  /** Expand reasoning by default. */
+  showReasoning: boolean;
+}
+
 export interface ModelSelection {
   instanceId: string;
   model: string;
@@ -25,7 +52,15 @@ export interface Settings {
   selection: ModelSelection;
   /** When first-run discovery last completed (0 = never). */
   discoveredAt: number;
+  generation: GenerationSettings;
+  systemPrompt: string;
+  reasoning: ReasoningMode;
+  siteRules: SiteRule[];
+  chat: ChatPrefs;
 }
+
+export const DEFAULT_SYSTEM_PROMPT =
+  'You are Tether, a helpful assistant running locally on the user’s computer. Be concise and accurate. Use Markdown when it helps readability.';
 
 export const SETTINGS_KEY = 'tether:settings';
 export const SETTINGS_VERSION = 1;
@@ -36,7 +71,51 @@ export const DEFAULT_SETTINGS: Settings = {
   providers: BUILTIN_PROVIDERS.map((p) => ({ ...p })),
   selection: { instanceId: '', model: '' },
   discoveredAt: 0,
+  generation: { temperature: 0.7, topP: 0.9, maxTokens: 2048, numCtx: 8192, seed: -1 },
+  systemPrompt: DEFAULT_SYSTEM_PROMPT,
+  reasoning: 'auto',
+  siteRules: [],
+  chat: { enterToSend: true, showReasoning: false },
 };
+
+function sanitizeSiteRules(raw: unknown): SiteRule[] {
+  if (!Array.isArray(raw)) return [];
+  return raw.filter(
+    (r): r is SiteRule =>
+      !!r &&
+      typeof r === 'object' &&
+      typeof (r as SiteRule).pattern === 'string' &&
+      typeof (r as SiteRule).instanceId === 'string' &&
+      typeof (r as SiteRule).model === 'string',
+  );
+}
+
+/** "github.com" matches github.com and www.github.com; "*.github.com" matches any subdomain. */
+export function hostMatches(pattern: string, hostname: string): boolean {
+  const p = pattern
+    .trim()
+    .toLowerCase()
+    .replace(/^https?:\/\//, '')
+    .replace(/\/.*$/, '');
+  const h = hostname.toLowerCase();
+  if (!p) return false;
+  if (p.startsWith('*.')) {
+    const suffix = p.slice(2);
+    return h === suffix || h.endsWith(`.${suffix}`);
+  }
+  return h === p || h === `www.${p}`;
+}
+
+export function matchSiteRule(rules: SiteRule[], url: string | undefined): SiteRule | undefined {
+  if (!url) return undefined;
+  let host: string;
+  try {
+    host = new URL(url).hostname;
+  } catch {
+    return undefined;
+  }
+  return rules.find((r) => hostMatches(r.pattern, host));
+}
 
 export type DeepPartial<T> = T extends readonly unknown[]
   ? T
@@ -89,6 +168,10 @@ export function migrate(raw: unknown): Settings {
   return {
     ...merged,
     providers: sanitizeProviders(merged.providers),
+    siteRules: sanitizeSiteRules(merged.siteRules),
+    reasoning: (['auto', 'on', 'off'] as const).includes(merged.reasoning)
+      ? merged.reasoning
+      : 'auto',
     schemaVersion: SETTINGS_VERSION,
   };
 }
