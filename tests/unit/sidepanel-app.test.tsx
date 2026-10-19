@@ -1,11 +1,12 @@
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { createChatStream } from '@/background/chat';
 import { echoStream } from '@/background/echo';
 import { providerHandlers } from '@/background/providers';
 import { App } from '@/entrypoints/sidepanel/App';
 import { registerHandlers } from '@/lib/messaging';
 import { registerStreamHandlers } from '@/lib/ports';
+import { getDb } from '@/lib/db';
 import { getSettings } from '@/lib/settings';
 import { memoryOverrides } from '@/providers/overrides';
 import { ProviderRegistry } from '@/providers/registry';
@@ -13,6 +14,9 @@ import { fakeFetch, json } from '../helpers/fake-fetch';
 import { fixtureBytes, streamResponse } from '../helpers/streams';
 
 afterEach(cleanup);
+beforeEach(async () => {
+  await Promise.all(getDb().tables.map((t) => t.clear()));
+});
 
 type Routes = Parameters<typeof fakeFetch>[0];
 
@@ -72,30 +76,69 @@ describe('side panel', () => {
     });
   });
 
-  it('picks the hot model and streams a quick prompt with metrics', async () => {
-    background(OLLAMA_OK);
+  it('chats: picks the hot model, streams, persists, and never sends reasoning back', async () => {
+    let n = 0;
+    const bodies: unknown[] = [];
+    background({
+      ...OLLAMA_OK,
+      'POST /api/show': () =>
+        json({
+          capabilities: ['completion', 'tools', 'thinking'],
+          model_info: { 'general.architecture': 'llama', 'llama.context_length': 131072 },
+        }),
+      'POST /api/chat': (call) => {
+        bodies.push(call.body);
+        return streamResponse(
+          fixtureBytes(n++ === 0 ? 'ollama-chat-thinking.ndjson' : 'ollama-chat-basic.ndjson'),
+          { cuts: [40] },
+        );
+      },
+    });
     render(<App />);
     const picker = await screen.findByTestId('model-picker');
     await waitFor(() => {
       expect(picker.textContent).toContain('llama3.2:3b');
     });
-    await waitFor(async () => {
-      expect((await getSettings()).selection).toEqual({
-        instanceId: 'ollama',
-        model: 'llama3.2:3b',
-      });
-    });
 
-    fireEvent.change(screen.getByLabelText('Prompt'), { target: { value: 'Say hi' } });
-    fireEvent.click(screen.getByRole('button', { name: /send/i }));
-
+    fireEvent.change(screen.getByLabelText('Message'), { target: { value: 'Say hi' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Send' }));
     await waitFor(() => {
-      expect(screen.getByTestId('run-output').dataset.phase).toBe('done');
+      expect(screen.getByTestId('msg-assistant').dataset.status).toBe('done');
     });
-    expect(screen.getByTestId('run-text').textContent).toBe('Bonjour — ça va? 👋 你好');
-    const metrics = screen.getByTestId('metrics').textContent;
-    expect(metrics).toContain('tok/s25.0');
-    expect(metrics).toContain('prompt26 tok');
-    expect(metrics).toContain('load1.85 s');
+    expect(screen.getByTestId('msg-assistant').textContent).toContain('Hi there!');
+    // Reasoning is hidden by default, one click away.
+    expect(screen.queryByTestId('reasoning')).toBeNull();
+    fireEvent.click(screen.getByTestId('reasoning-toggle'));
+    expect(screen.getByTestId('reasoning').textContent).toBe('The user wants a greeting.');
+    expect(screen.getByTestId('panel-title').textContent).toBe('Say hi');
+
+    fireEvent.change(screen.getByLabelText('Message'), { target: { value: 'Again in French' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Send' }));
+    await waitFor(() => {
+      expect(screen.getAllByTestId('msg-assistant')[1]?.dataset.status).toBe('done');
+    });
+    expect(screen.getAllByTestId('msg-assistant')[1]?.textContent).toContain('Bonjour');
+
+    const second = bodies[1] as {
+      messages: { role: string; content: string }[];
+      options: Record<string, unknown>;
+    };
+    expect(second.messages.map((m) => [m.role, m.content])).toEqual([
+      ['system', expect.stringContaining('Tether') as string],
+      ['user', 'Say hi'],
+      ['assistant', 'Hi there!'],
+      ['user', 'Again in French'],
+    ]);
+    expect(JSON.stringify(second)).not.toContain('greeting');
+    expect(second.options).toMatchObject({
+      temperature: 0.7,
+      top_p: 0.9,
+      num_predict: 2048,
+      num_ctx: 8192,
+    });
+
+    const convs = await getDb().conversations.toArray();
+    expect(convs).toHaveLength(1);
+    expect(await getDb().messages.count()).toBe(4);
   });
 });

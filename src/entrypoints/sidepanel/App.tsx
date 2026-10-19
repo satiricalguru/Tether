@@ -1,49 +1,78 @@
-import { Send, Settings as SettingsIcon, Square, Stethoscope } from 'lucide-react';
-import { useState } from 'react';
+import { ArrowLeft, History, Settings as SettingsIcon, SquarePen, Stethoscope } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { activeReplyIds, stopAll } from '@/chat/runner';
+import { recoverInterrupted } from '@/chat/store';
+import { useChatUi } from '@/chat/ui-store';
 import { AppProviders } from '@/components/app-providers';
-import { RunOutput } from '@/components/chat/run-output';
+import { ChatView } from '@/components/chat/chat-view';
+import { HistoryView } from '@/components/chat/history-view';
 import { SetupDoctor } from '@/components/doctor/setup-doctor';
-import { ModelPicker } from '@/components/models/model-picker';
 import { Button } from '@/components/ui/button';
 import { StatusDot } from '@/components/ui/status-dot';
 import { useBackgroundStatus } from '@/hooks/use-background-status';
-import { useChatRun } from '@/hooks/use-chat-run';
+import { useConversation } from '@/hooks/use-conversation';
 import { useProviderStatus } from '@/hooks/use-providers';
 import { useSettings } from '@/hooks/use-settings';
 import { useApplyTheme } from '@/hooks/use-theme';
 import { sendMessage } from '@/lib/messaging';
 
 function Header({
-  onToggleDoctor,
   doctorOpen,
+  onToggleDoctor,
 }: {
-  onToggleDoctor: () => void;
   doctorOpen: boolean;
+  onToggleDoctor: () => void;
 }) {
   const status = useBackgroundStatus();
+  const { view, setView, conversationId, openConversation } = useChatUi();
+  const { conversation } = useConversation(conversationId);
+  const inHistory = view === 'history';
+
   return (
-    <header className="flex items-center gap-2 border-b border-border px-3 py-2">
-      <h1 className="text-base font-semibold tracking-tight">Tether</h1>
-      <span
-        className="ml-1 flex items-center gap-1.5 text-xs text-muted"
-        data-testid="bg-status"
-        data-state={status.state}
+    <header className="flex items-center gap-1 border-b border-border px-2 py-1.5">
+      <Button
+        variant="ghost"
+        size="icon"
+        aria-label={inHistory ? 'Back to chat' : 'History'}
+        onClick={() => {
+          setView(inHistory ? 'chat' : 'history');
+        }}
       >
-        <StatusDot
-          status={
-            status.state === 'connected' ? 'ok' : status.state === 'error' ? 'error' : 'pending'
+        {inHistory ? <ArrowLeft /> : <History />}
+      </Button>
+      <div className="flex min-w-0 flex-1 items-center gap-1.5">
+        <span data-testid="bg-status" data-state={status.state}>
+          <StatusDot
+            status={
+              status.state === 'connected' ? 'ok' : status.state === 'error' ? 'error' : 'pending'
+            }
+          />
+        </span>
+        <h1
+          className="truncate text-sm font-semibold"
+          data-testid="panel-title"
+          title={
+            status.state === 'connected'
+              ? `Tether v${status.info.version}`
+              : 'Background worker unreachable'
           }
-        />
-        {status.state === 'connected'
-          ? `connected · v${status.info.version}`
-          : status.state === 'error'
-            ? 'background unreachable'
-            : 'connecting…'}
-      </span>
+        >
+          {inHistory ? 'History' : (conversation?.title ?? 'Tether')}
+        </h1>
+      </div>
+      <Button
+        variant="ghost"
+        size="icon"
+        aria-label="New chat"
+        onClick={() => {
+          openConversation(null);
+        }}
+      >
+        <SquarePen />
+      </Button>
       <Button
         variant={doctorOpen ? 'secondary' : 'ghost'}
         size="icon"
-        className="ml-auto"
         aria-label="Setup Doctor"
         aria-pressed={doctorOpen}
         onClick={onToggleDoctor}
@@ -62,76 +91,26 @@ function Header({
   );
 }
 
-function QuickPrompt() {
-  const { settings } = useSettings();
-  const { state, start, stop } = useChatRun();
-  const [prompt, setPrompt] = useState('');
-  const selection = settings?.selection;
-  const ready = !!selection?.instanceId && !!selection.model;
-  const running = state.phase === 'running';
-
-  const send = () => {
-    if (!ready || !prompt.trim()) return;
-    void start({
-      instanceId: selection.instanceId,
-      model: selection.model,
-      messages: [{ role: 'user', content: prompt.trim() }],
-    });
-  };
-
-  return (
-    <div className="flex flex-col gap-3">
-      <ModelPicker />
-      <form
-        className="flex flex-col gap-2"
-        onSubmit={(e) => {
-          e.preventDefault();
-          send();
-        }}
-      >
-        <textarea
-          aria-label="Prompt"
-          rows={3}
-          value={prompt}
-          placeholder="Ask your local model…"
-          className="w-full resize-none rounded-md border border-border bg-bg p-2 text-sm focus:ring-2 focus:ring-ring focus:outline-none"
-          onChange={(e) => {
-            setPrompt(e.target.value);
-          }}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' && !e.shiftKey) {
-              e.preventDefault();
-              send();
-            }
-          }}
-        />
-        <div className="flex justify-end">
-          {/* Distinct keys: if React reused one <button> for both, a Stop click
-              that settles the stream mid-event would flip it to type=submit
-              and the browser would submit the form, resending the prompt. */}
-          {running ? (
-            <Button key="stop" type="button" variant="danger" size="sm" onClick={stop}>
-              <Square /> Stop
-            </Button>
-          ) : (
-            <Button key="send" type="submit" size="sm" disabled={!ready || !prompt.trim()}>
-              <Send /> Send
-            </Button>
-          )}
-        </div>
-      </form>
-      <RunOutput state={state} />
-    </div>
-  );
-}
-
 function Panel() {
   const { settings } = useSettings();
   useApplyTheme(settings?.theme);
   const providers = useProviderStatus();
+  const view = useChatUi((s) => s.view);
   const [doctorOpen, setDoctorOpen] = useState(false);
   const anyHealthy = providers.data?.some((p) => p.health?.ok) ?? false;
   const showDoctor = doctorOpen || (!providers.isPending && !anyHealthy);
+
+  // Replies left "streaming" by a panel that closed mid-generation can't finish.
+  useEffect(() => {
+    void recoverInterrupted(activeReplyIds());
+    const onHide = () => {
+      stopAll();
+    };
+    window.addEventListener('pagehide', onHide);
+    return () => {
+      window.removeEventListener('pagehide', onHide);
+    };
+  }, []);
 
   return (
     <div className="flex h-full flex-col">
@@ -141,10 +120,12 @@ function Panel() {
           setDoctorOpen((v) => !v);
         }}
       />
-      <main className="flex flex-1 flex-col gap-4 overflow-y-auto p-3">
-        {showDoctor && <SetupDoctor compact />}
-        {anyHealthy && <QuickPrompt />}
-      </main>
+      {showDoctor && (
+        <div className="max-h-[60%] shrink-0 overflow-y-auto border-b border-border p-3">
+          <SetupDoctor compact />
+        </div>
+      )}
+      {view === 'history' ? <HistoryView /> : <ChatView />}
     </div>
   );
 }
