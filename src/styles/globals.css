@@ -1,0 +1,92 @@
+@import 'tailwindcss';
+
+/*
+ * Design tokens. Components reference semantic colors (bg-surface, text-fg,
+ * ...) so theming is a token swap. `data-theme` on <html> is set from
+ * settings; "system" leaves it unset and follows prefers-color-scheme.
+ */
+@custom-variant dark (&:where([data-theme='dark'], [data-theme='dark'] *));
+
+@theme {
+  --font-sans:
+    ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --font-mono: ui-monospace, 'SF Mono', Menlo, Consolas, 'Liberation Mono', monospace;
+
+  --color-bg: var(--t-bg);
+  --color-surface: var(--t-surface);
+  --color-surface-2: var(--t-surface-2);
+  --color-border: var(--t-border);
+  --color-fg: var(--t-fg);
+  --color-muted: var(--t-muted);
+  --color-accent: var(--t-accent);
+  --color-accent-fg: var(--t-accent-fg);
+  --color-ok: var(--t-ok);
+  --color-warn: var(--t-warn);
+  --color-danger: var(--t-danger);
+  --color-ring: var(--t-ring);
+}
+
+:root {
+  --t-bg: #fbfbfa;
+  --t-surface: #ffffff;
+  --t-surface-2: #f2f2f0;
+  --t-border: #e3e3df;
+  --t-fg: #1c1c1a;
+  --t-muted: #6b6b66;
+  --t-accent: #3d5afe;
+  --t-accent-fg: #ffffff;
+  --t-ok: #1f8a4c;
+  --t-warn: #b26a00;
+  --t-danger: #c62828;
+  --t-ring: #3d5afe66;
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    --t-bg: #141413;
+    --t-surface: #1c1c1b;
+    --t-surface-2: #262624;
+    --t-border: #34342f;
+    --t-fg: #ececea;
+    --t-muted: #9a9a93;
+    --t-accent: #7b8cff;
+    --t-accent-fg: #0d0d0c;
+    --t-ok: #4cc27f;
+    --t-warn: #e0a040;
+    --t-danger: #ef6b6b;
+    --t-ring: #7b8cff66;
+    color-scheme: dark;
+  }
+}
+
+:root[data-theme='dark'] {
+  --t-bg: #141413;
+  --t-surface: #1c1c1b;
+  --t-surface-2: #262624;
+  --t-border: #34342f;
+  --t-fg: #ececea;
+  --t-muted: #9a9a93;
+  --t-accent: #7b8cff;
+  --t-accent-fg: #0d0d0c;
+  --t-ok: #4cc27f;
+  --t-warn: #e0a040;
+  --t-danger: #ef6b6b;
+  --t-ring: #7b8cff66;
+  color-scheme: dark;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--t-bg);
+  color: var(--t-fg);
+  font-family: var(--font-sans);
+  font-size: 14px;
+  -webkit-font-smoothing: antialiased;
+}
