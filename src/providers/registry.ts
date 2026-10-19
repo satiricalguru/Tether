@@ -223,6 +223,8 @@ export class ProviderRegistry {
     candidates: DiscoveryCandidate[] = DISCOVERY_CANDIDATES,
   ): Promise<CandidateResult[]> {
     await this.configs();
+    // Probing a port is contacting it: candidates join the allowlist.
+    for (const c of candidates) this.allowed.add(originOf(c.baseUrl));
     return Promise.all(candidates.map((c) => this.fingerprint(c)));
   }
 
