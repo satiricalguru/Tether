@@ -18,6 +18,14 @@ import { Composer } from './composer';
 import { ConversationSettingsButton } from './conversation-settings';
 import { MessageItem } from './message-item';
 
+function hostnameOf(url: string | undefined): string {
+  try {
+    return url ? new URL(url).hostname : '';
+  } catch {
+    return '';
+  }
+}
+
 const SUGGESTIONS = [
   'Explain this concept like I’m new to it: ',
   'Write a regular expression that matches ',
@@ -91,7 +99,7 @@ export function ChatView() {
             {rule && (
               <p className="text-xs text-muted" data-testid="site-rule-hint">
                 Using <span className="font-medium text-fg">{rule.model}</span> for{' '}
-                {new URL(tabUrl ?? 'http://x').hostname}
+                {hostnameOf(tabUrl)}
               </p>
             )}
             <div className="flex flex-col gap-1">
