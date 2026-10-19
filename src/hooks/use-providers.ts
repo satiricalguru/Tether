@@ -63,6 +63,14 @@ export function useRemoveProvider() {
   });
 }
 
+export function useResetOverrides() {
+  const invalidate = useInvalidate();
+  return useMutation({
+    mutationFn: (instanceId: string) => sendMessage('bg:providers:reset-overrides', { instanceId }),
+    onSettled: invalidate,
+  });
+}
+
 export function useUnloadModel() {
   const invalidate = useInvalidate();
   return useMutation({

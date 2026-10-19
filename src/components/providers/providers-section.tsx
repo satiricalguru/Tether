@@ -1,11 +1,16 @@
-import { ChevronDown, ChevronRight, Pencil, Plus, Trash2 } from 'lucide-react';
+import { ChevronDown, ChevronRight, Eraser, Pencil, Plus, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import { SetupDoctor } from '@/components/doctor/setup-doctor';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardTitle } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
-import { useProviderStatus, useRemoveProvider, useSaveProvider } from '@/hooks/use-providers';
+import {
+  useProviderStatus,
+  useRemoveProvider,
+  useResetOverrides,
+  useSaveProvider,
+} from '@/hooks/use-providers';
 import { isBuiltin } from '@/providers/defaults';
 import type { ProviderStatus } from '@/providers/registry';
 import { ModelList } from './model-list';
@@ -22,6 +27,7 @@ function ProviderCard({
 }) {
   const save = useSaveProvider();
   const remove = useRemoveProvider();
+  const resetOverrides = useResetOverrides();
   const [open, setOpen] = useState(false);
   const healthy = p.health?.ok ?? false;
 
@@ -82,6 +88,21 @@ function ProviderCard({
       {editing && (
         <div className="mt-3 border-t border-border pt-3">
           <ProviderForm existing={p} onDone={() => onEdit(undefined)} />
+          <div className="mt-3 flex items-center gap-2 border-t border-border pt-3">
+            <p className="text-[11px] text-muted">
+              Tether remembers features this server rejected (native tools, usage stats) per model.
+              Clear that after upgrading the server.
+            </p>
+            <Button
+              size="sm"
+              variant="ghost"
+              className="shrink-0"
+              disabled={resetOverrides.isPending}
+              onClick={() => resetOverrides.mutate(p.instanceId)}
+            >
+              <Eraser /> {resetOverrides.isSuccess ? 'Forgotten' : 'Forget learned limits'}
+            </Button>
+          </div>
         </div>
       )}
       {open && healthy && (
