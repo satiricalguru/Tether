@@ -1,0 +1,6 @@
+{"model":"qwen3:8b","created_at":"2026-10-19T10:00:00.000Z","message":{"role":"assistant","content":"","thinking":"The user wants"},"done":false}
+{"model":"qwen3:8b","created_at":"2026-10-19T10:00:00.020Z","message":{"role":"assistant","content":"","thinking":" a greeting."},"done":false}
+{"model":"qwen3:8b","created_at":"2026-10-19T10:00:00.040Z","message":{"role":"assistant","content":"Hi"},"done":false}
+{"model":"qwen3:8b","created_at":"2026-10-19T10:00:00.060Z","message":{"role":"assistant","content":" there!"},"done":false}
+
+{"model":"qwen3:8b","created_at":"2026-10-19T10:00:00.080Z","message":{"role":"assistant","content":""},"done_reason":"length","done":true,"prompt_eval_count":10,"eval_count":6,"eval_duration":60000000}

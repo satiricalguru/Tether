@@ -1,0 +1,14 @@
+data: {"id":"chatcmpl-abc","object":"chat.completion.chunk","created":1760868000,"model":"qwen2.5-7b-instruct","system_fingerprint":"qwen2.5-7b-instruct","choices":[{"index":0,"delta":{"role":"assistant","content":""},"logprobs":null,"finish_reason":null}]}
+
+data: {"id":"chatcmpl-abc","object":"chat.completion.chunk","created":1760868000,"model":"qwen2.5-7b-instruct","system_fingerprint":"qwen2.5-7b-instruct","choices":[{"index":0,"delta":{"reasoning_content":"Short answer."},"logprobs":null,"finish_reason":null}]}
+
+data: {"id":"chatcmpl-abc","object":"chat.completion.chunk","created":1760868000,"model":"qwen2.5-7b-instruct","system_fingerprint":"qwen2.5-7b-instruct","choices":[{"index":0,"delta":{"content":"Paris is"},"logprobs":null,"finish_reason":null}]}
+
+data: {"id":"chatcmpl-abc","object":"chat.completion.chunk","created":1760868000,"model":"qwen2.5-7b-instruct","system_fingerprint":"qwen2.5-7b-instruct","choices":[{"index":0,"delta":{"content":" the capital — 🇫🇷."},"logprobs":null,"finish_reason":null}]}
+
+data: {"id":"chatcmpl-abc","object":"chat.completion.chunk","created":1760868000,"model":"qwen2.5-7b-instruct","system_fingerprint":"qwen2.5-7b-instruct","choices":[{"index":0,"delta":{},"logprobs":null,"finish_reason":"stop"}]}
+
+data: {"id":"chatcmpl-abc","object":"chat.completion.chunk","created":1760868000,"model":"qwen2.5-7b-instruct","system_fingerprint":"qwen2.5-7b-instruct","choices":[],"usage":{"prompt_tokens":24,"completion_tokens":9,"total_tokens":33}}
+
+data: [DONE]
+

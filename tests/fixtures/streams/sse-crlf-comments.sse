@@ -1,0 +1,12 @@
+: ping
+
+event: message
+data: {"choices":[{"index":0,"delta":{"content":"line one"}}]}
+
+: keep-alive comment
+data: {"choices":[{"index":0,
+data: "delta":{"content":" + two"}}]}
+
+data: {"choices":[{"index":0,"delta":{},"finish_reason":"stop"}]}
+
+data: [DONE]

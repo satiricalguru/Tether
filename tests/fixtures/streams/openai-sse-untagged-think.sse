@@ -1,0 +1,10 @@
+data: {"choices":[{"index":0,"delta":{"content":"Okay, the user"}}]}
+
+data: {"choices":[{"index":0,"delta":{"content":" asks for 2+2.\n</th"}}]}
+
+data: {"choices":[{"index":0,"delta":{"content":"ink>\n\nThe answer is **4**."}}]}
+
+data: {"choices":[{"index":0,"delta":{},"finish_reason":"stop"}]}
+
+data: [DONE]
+
