@@ -45,6 +45,11 @@ export default tseslint.config(
     },
   },
   {
+    // Playwright fixtures call `use()`, which the hooks rule mistakes for React's.
+    files: ['tests/e2e/**/*.ts'],
+    rules: { 'react-hooks/rules-of-hooks': 'off' },
+  },
+  {
     files: ['eslint.config.js'],
     ...tseslint.configs.disableTypeChecked,
   },
