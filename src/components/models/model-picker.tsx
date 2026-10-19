@@ -31,37 +31,66 @@ export function defaultSelection(
   return pick ? { instanceId: pick.g.instanceId, model: pick.m.id } : null;
 }
 
-export function ModelPicker({ className }: { className?: string }) {
+export interface ModelPickerProps {
+  /** Controlled value; omit to bind to the global selection (new chats). */
+  value?: { instanceId: string; model: string };
+  onChange?: (v: { instanceId: string; model: string }) => void;
+  className?: string;
+  compact?: boolean;
+}
+
+export function ModelPicker({ value, onChange, className, compact = false }: ModelPickerProps) {
   const { data, isPending } = useAllModels();
   const { settings, update } = useSettings();
   const groups = chatGroups(data ?? []);
-  const sel = settings?.selection;
-  const current =
-    sel &&
-    groups.some((g) => g.instanceId === sel.instanceId && g.models.some((m) => m.id === sel.model))
-      ? selectionKey(sel.instanceId, sel.model)
-      : undefined;
+  const sel = value ?? settings?.selection;
+  const available = (s: { instanceId: string; model: string } | undefined) =>
+    !!s &&
+    groups.some((g) => g.instanceId === s.instanceId && g.models.some((m) => m.id === s.model));
+  const current = available(sel) && sel ? selectionKey(sel.instanceId, sel.model) : undefined;
+  const controlled = value !== undefined;
 
-  // Keep a valid selection: choose a sensible default when none / gone.
+  // Uncontrolled: keep a valid global selection, choosing a default when none / gone.
   useEffect(() => {
-    if (!settings || isPending || current) return;
+    if (controlled || !settings || isPending || current) return;
     const next = defaultSelection(groups);
     if (next) void update({ selection: next });
-  }, [settings, isPending, current, groups, update]);
+  }, [controlled, settings, isPending, current, groups, update]);
+
+  const unavailableModel = controlled && !current && !isPending ? value.model : undefined;
 
   return (
     <Select
       {...(current ? { value: current } : {})}
       onValueChange={(v) => {
         const parsed = parseSelectionKey(v);
-        if (parsed) void update({ selection: parsed });
+        if (!parsed) return;
+        // The latest choice is also the default for the next new chat.
+        void update({ selection: parsed });
+        onChange?.(parsed);
       }}
       disabled={groups.length === 0}
     >
-      <SelectTrigger aria-label="Model" className={className} data-testid="model-picker">
-        <SelectValue placeholder={isPending ? 'Loading models…' : 'No models available'} />
+      <SelectTrigger
+        aria-label="Model"
+        className={
+          compact
+            ? `h-7 w-auto max-w-[60%] border-transparent bg-transparent px-1.5 text-xs ${className ?? ''}`
+            : className
+        }
+        data-testid="model-picker"
+      >
+        <SelectValue
+          placeholder={
+            isPending
+              ? 'Loading models…'
+              : unavailableModel
+                ? `${unavailableModel} (unavailable)`
+                : 'No models available'
+          }
+        />
       </SelectTrigger>
-      <SelectContent>
+      <SelectContent className={compact ? 'w-72' : undefined}>
         {groups.map((g) => (
           <SelectGroup key={g.instanceId}>
             <SelectLabel>{g.label}</SelectLabel>
