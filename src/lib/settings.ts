@@ -1,4 +1,6 @@
 import { browser } from 'wxt/browser';
+import { BUILTIN_PROVIDERS, sanitizeProviders } from '@/providers/defaults';
+import type { ProviderConfig } from '@/providers/types';
 
 /**
  * User settings, persisted in `chrome.storage.local` under one key.
@@ -10,9 +12,19 @@ import { browser } from 'wxt/browser';
 
 export type Theme = 'system' | 'light' | 'dark';
 
+export interface ModelSelection {
+  instanceId: string;
+  model: string;
+}
+
 export interface Settings {
   schemaVersion: number;
   theme: Theme;
+  providers: ProviderConfig[];
+  /** The model the composer uses; empty strings = nothing chosen yet. */
+  selection: ModelSelection;
+  /** When first-run discovery last completed (0 = never). */
+  discoveredAt: number;
 }
 
 export const SETTINGS_KEY = 'tether:settings';
@@ -21,6 +33,9 @@ export const SETTINGS_VERSION = 1;
 export const DEFAULT_SETTINGS: Settings = {
   schemaVersion: SETTINGS_VERSION,
   theme: 'system',
+  providers: BUILTIN_PROVIDERS.map((p) => ({ ...p })),
+  selection: { instanceId: '', model: '' },
+  discoveredAt: 0,
 };
 
 export type DeepPartial<T> = T extends readonly unknown[]
@@ -70,7 +85,12 @@ export function migrate(raw: unknown): Settings {
     version += 1;
   }
   const merged = mergeDeep(DEFAULT_SETTINGS, current);
-  return { ...merged, schemaVersion: SETTINGS_VERSION };
+  // Arrays replace wholesale in mergeDeep, so their elements are validated here.
+  return {
+    ...merged,
+    providers: sanitizeProviders(merged.providers),
+    schemaVersion: SETTINGS_VERSION,
+  };
 }
 
 export async function getSettings(): Promise<Settings> {
@@ -80,7 +100,7 @@ export async function getSettings(): Promise<Settings> {
 
 export async function updateSettings(patch: DeepPartial<Settings>): Promise<Settings> {
   const current = await getSettings();
-  const next = mergeDeep(current, patch);
+  const next = migrate(mergeDeep(current, patch));
   await browser.storage.local.set({ [SETTINGS_KEY]: next });
   return next;
 }
