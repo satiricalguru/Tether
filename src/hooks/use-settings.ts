@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import {
   getSettings,
+  mergeDeep,
   updateSettings,
   watchSettings,
   type DeepPartial,
@@ -26,6 +27,11 @@ export function useSettings(): {
     };
   }, []);
 
-  const update = useCallback((patch: DeepPartial<Settings>) => updateSettings(patch), []);
+  // Apply locally first so controlled inputs don't snap back while the write
+  // round-trips through storage; the watcher then confirms the stored value.
+  const update = useCallback((patch: DeepPartial<Settings>) => {
+    setSettings((prev) => (prev ? mergeDeep(prev, patch) : prev));
+    return updateSettings(patch);
+  }, []);
   return { settings, update };
 }
