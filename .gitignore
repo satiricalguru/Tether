@@ -1,0 +1,12 @@
+node_modules
+.output
+.wxt
+dist
+coverage
+playwright-report
+test-results
+tests/e2e/.cache
+*.log
+.DS_Store
+.env
+.env.*

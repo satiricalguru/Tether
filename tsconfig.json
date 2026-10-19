@@ -1,0 +1,16 @@
+{
+  "extends": "./.wxt/tsconfig.json",
+  "compilerOptions": {
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "noImplicitOverride": true,
+    "noFallthroughCasesInSwitch": true,
+    "exactOptionalPropertyTypes": false,
+    "useUnknownInCatchVariables": true,
+    "allowImportingTsExtensions": true,
+    "jsx": "react-jsx",
+    "types": ["vite/client"]
+  },
+  "include": [".wxt/wxt.d.ts", "src", "tests", "*.config.ts", "wxt.config.ts"],
+  "exclude": ["node_modules", ".output", "tests/e2e/.cache"]
+}
