@@ -171,6 +171,12 @@ export interface Provider {
   unload?(model: string): Promise<void>;
   /** undefined = unknown (backend can't tell us). */
   isLoaded?(model: string): Promise<boolean | undefined>;
+  /**
+   * The context window the server is actually running the model with, which
+   * can be far below the model's maximum (Ollama defaults to a few thousand
+   * tokens unless num_ctx is set). undefined = unknown or not loaded.
+   */
+  runtimeContext?(model: string): Promise<number | undefined>;
 }
 
 export const DEFAULT_CAPABILITIES: Capabilities = {

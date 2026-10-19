@@ -116,5 +116,10 @@ export function createLlamaCpp(config: ProviderConfig, deps: AdapterDeps): Provi
 
     // One model per server process: if it answers, the model is resident.
     isLoaded: () => Promise.resolve(true),
+
+    async runtimeContext() {
+      const p = await props().catch(() => undefined);
+      return p?.default_generation_settings?.n_ctx ?? p?.n_ctx;
+    },
   };
 }

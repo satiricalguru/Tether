@@ -14,6 +14,7 @@ export function MetricsFooter({ metrics }: { metrics: ChatMetrics }) {
       'context',
       `${formatTokens(used)} / ${formatTokens(metrics.contextLength)} (${Math.max(1, Math.round((used / metrics.contextLength) * 100))}%)`,
     ]);
+    if (metrics.maxContextLength) items.push(['model max', formatTokens(metrics.maxContextLength)]);
   }
   if (metrics.loadMs) items.push(['load', formatMs(metrics.loadMs)]);
   return (

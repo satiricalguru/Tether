@@ -26,7 +26,10 @@ export interface ChatMetrics {
   /** True when the server didn't report usage and we counted chunks instead. */
   completionTokensEstimated: boolean;
   loadMs?: number;
+  /** The window this request actually ran with (see Provider.runtimeContext). */
   contextLength?: number;
+  /** The model's trained maximum, when larger than contextLength. */
+  maxContextLength?: number;
   finishReason: FinishReason;
 }
 
@@ -124,8 +127,16 @@ export function createChatStream(deps: ChatServiceDeps): StreamHandler<'chat'> {
     if (usage.promptTokens !== undefined) metrics.promptTokens = usage.promptTokens;
     if (completionTokens !== undefined) metrics.completionTokens = completionTokens;
     if (usage.loadMs !== undefined) metrics.loadMs = Math.round(usage.loadMs);
-    const ctx = await contextLength;
-    if (ctx !== undefined) metrics.contextLength = ctx;
+    // Effective window: what we asked for, else what the server is running
+    // with, else the model's maximum.
+    const max = await contextLength;
+    const runtime =
+      chatReq.options?.numCtx ??
+      (await provider.runtimeContext?.(chatReq.model).catch(() => undefined));
+    const effective = runtime ?? max;
+    if (effective !== undefined) metrics.contextLength = effective;
+    if (max !== undefined && effective !== undefined && max > effective)
+      metrics.maxContextLength = max;
     return { metrics };
   };
 }

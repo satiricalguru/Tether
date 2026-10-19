@@ -28,6 +28,8 @@ interface OllamaTag {
   name: string;
   model?: string;
   size?: number;
+  /** /api/ps only: the window the runner was started with. */
+  context_length?: number;
   details?: OllamaDetails;
 }
 
@@ -318,6 +320,18 @@ export function createOllama(config: ProviderConfig, deps: AdapterDeps): Provide
         method: 'POST',
         body: JSON.stringify({ model, keep_alive: 0 }),
       });
+    },
+
+    async runtimeContext(model) {
+      try {
+        const ps = (await http.json(`${base}/api/ps`, { timeoutMs: HEALTH_TIMEOUT_MS })) as {
+          models?: OllamaTag[];
+        };
+        const want = canonicalOllamaName(model);
+        return ps.models?.find((m) => canonicalOllamaName(m.name) === want)?.context_length;
+      } catch {
+        return undefined;
+      }
     },
 
     async isLoaded(model) {

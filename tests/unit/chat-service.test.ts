@@ -103,6 +103,46 @@ describe('chat stream metrics', () => {
   });
 });
 
+describe('chat stream context window', () => {
+  const chunks: (ChatChunk | number)[] = [
+    { type: 'text', text: 'a' },
+    { type: 'finish', reason: 'stop', usage: { promptTokens: 10, completionTokens: 1 } },
+  ];
+  async function ctxMetrics(provider: Provider, numCtx?: number) {
+    const handler = createChatStream({
+      getProvider: () => Promise.resolve(provider),
+      contextLength: () => Promise.resolve(262144),
+    });
+    const it = handler(
+      { instanceId: 'p', model: 'm', messages: [], ...(numCtx ? { options: { numCtx } } : {}) },
+      { signal: new AbortController().signal, sender: undefined },
+    );
+    for (;;) {
+      const step = await it.next();
+      if (step.done) return step.value.metrics;
+    }
+  }
+
+  it('reports the window the server runs with, keeping the model max separately', async () => {
+    const p = { ...fakeProvider(chunks, { t: 0 }), runtimeContext: () => Promise.resolve(4096) };
+    expect(await ctxMetrics(p)).toMatchObject({ contextLength: 4096, maxContextLength: 262144 });
+  });
+
+  it('prefers the requested num_ctx', async () => {
+    const p = { ...fakeProvider(chunks, { t: 0 }), runtimeContext: () => Promise.resolve(4096) };
+    expect(await ctxMetrics(p, 32768)).toMatchObject({
+      contextLength: 32768,
+      maxContextLength: 262144,
+    });
+  });
+
+  it('falls back to the model maximum when the runtime window is unknown', async () => {
+    const metrics = await ctxMetrics(fakeProvider(chunks, { t: 0 }));
+    expect(metrics.contextLength).toBe(262144);
+    expect(metrics.maxContextLength).toBeUndefined();
+  });
+});
+
 describe('registry.allModels', () => {
   it('groups healthy providers and lists hot models first', async () => {
     const { impl } = fakeFetch({

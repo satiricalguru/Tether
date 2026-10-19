@@ -121,6 +121,11 @@ export function createLmStudio(config: ProviderConfig, deps: AdapterDeps): Provi
 
     embed: (texts, model) => openAIEmbed(ctx, texts, model),
 
+    async runtimeContext(model) {
+      const native = await nativeModels(HEALTH_TIMEOUT_MS).catch(() => undefined);
+      return native?.find((x) => x.id === model)?.loaded_context_length;
+    },
+
     async isLoaded(model) {
       try {
         const native = await nativeModels(HEALTH_TIMEOUT_MS);
