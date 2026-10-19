@@ -63,7 +63,12 @@ export default defineConfig({
       ...(isFirefox
         ? {
             browser_specific_settings: {
-              gecko: { id: 'tether@local', strict_min_version: '128.0' },
+              gecko: {
+                id: 'tether@local',
+                strict_min_version: '128.0',
+                // Tether sends nothing anywhere except the user's own endpoints.
+                data_collection_permissions: { required: ['none'] },
+              },
             },
           }
         : { minimum_chrome_version: '120' }),
