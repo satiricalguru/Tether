@@ -10,3 +10,7 @@ tests/e2e/.cache
 .DS_Store
 .env
 .env.*
+
+# eval runs write here; baselines are recorded in the README
+tests/eval/results/*
+!tests/eval/results/.gitkeep
