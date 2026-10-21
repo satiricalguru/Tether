@@ -186,10 +186,10 @@ for (const tier of TIERS) {
       });
       test.info().annotations.push({
         type: why === null ? 'pass' : 'fail',
-        description: `${outcome.actions.join(' → ')} | ${outcome.summary.slice(0, 200)}${why ? ` | ${why}` : ''}`,
+        description: `${outcome.actions.join(' → ')} | ${outcome.summary.replace(/\s+/g, ' ').slice(0, 600)}${why ? ` | ${why}` : ''}`,
       });
       console.log(
-        `${tier} · ${t.id}: ${why === null ? 'PASS' : `FAIL (${why})`} — ${outcome.actions.join(' → ')} — ${outcome.summary.slice(0, 160)}`,
+        `${tier} · ${t.id}: ${why === null ? 'PASS' : `FAIL (${why})`} — ${outcome.actions.join(' → ')} — ${outcome.summary.replace(/\s+/g, ' ').slice(0, 600)}`,
       );
     });
   }
