@@ -59,6 +59,18 @@ reasoning. Newest entries at the bottom of each section.
   fixture, recommended the review's real pick and told the user it was
   ignoring the embedded instruction.
 
+- **The agent doesn't prompt for all-sites access up front.** Playwright
+  showed that an unanswerable prompt blocks the run forever, and many users
+  would decline before seeing what the agent needs. Runs start with the
+  current access; unreadable pages are reported to the model as such, and
+  the run card offers _Allow on all sites_.
+- **Phase 4 tool set is read-only**: navigate, back, newTab, switchTab,
+  waitFor, extract, askUser, done. The parser corpus and grammar tests use
+  the full spec §6.2 action space, so they stay valid for Phase 5.
+- **GBNF is verified without llama.cpp** (not installed here) by a
+  hand-written GBNF recognizer in `tests/helpers/gbnf.ts`. Tier 2 on Ollama
+  uses JSON Schema `format`, which Ollama compiles to a grammar itself.
+
 ## Architecture decisions
 
 ### ADR-001 Content script is injected on demand, not declared for all sites
@@ -332,3 +344,80 @@ non-extension tab in the window instead.
 | ---------------------------- | ------------------------------------------------------------------------------------- |
 | `@mozilla/readability` 0.6.0 | Firefox Reader View's algorithm; the de-facto standard for main-content detection.    |
 | `pdfjs-dist` ~6.3.289        | Spec choice for PDF text. Legacy build (see ADR-030); lazy chunk plus emitted worker. |
+
+### ADR-033 Tool-calling tier per model, with mid-run fallback
+
+`selectTier`: native if `capabilities.nativeTools`, else constrained if the
+server has a grammar or JSON-schema mode, else text. `E_TOOLS_UNSUPPORTED`
+(Phase 1's persisted downgrade) drops a running agent to the next tier
+without losing the step. `agent.toolTier` forces a tier, which is what the
+eval uses. A native-tier model that answers in text instead of calling a
+tool is parsed with the tier-3 parser rather than failed.
+
+### ADR-034 Stateless steps with a compact progress log
+
+Every step is one fresh request: system prompt, then task, then the last 8
+progress lines, then the current observation. It is not a growing
+transcript, because small context windows are the binding constraint and
+long histories degrade small models. Model reasoning is never included
+(a test injects a marker into reasoning and asserts it never reappears).
+
+### ADR-035 Validate before execute; repair once, free
+
+Every call is validated against its tool's schema by a CSP-safe validator
+(`ajv` is out: it code-generates with `new Function`), with unambiguous
+coercions (`"42"` → 42, `"true"` → true, case-insensitive enums). An
+unusable reply gets exactly one repair round: the model sees its own reply
+and the specific error. Unusable replies don't count as steps, but three in
+a row end the run.
+
+### ADR-036 One tolerant parser for every text format small models emit
+
+`parseToolCall` accepts the protocol (`<action name>` / `<arg>`) and the
+native formats models leak (Hermes `<tool_call>`, Llama `<|python_tag|>`,
+Mistral `[TOOL_CALLS]`, Gemma `tool_code`, Phi function calls, bare and
+OpenAI-style JSON). Values are converted by the tool's schema. Name
+resolution normalizes case and separators and accepts only unambiguous
+one-letter typos on longer names. Errors are short and specific because
+they are fed back to the model. The corpus is 54 outputs: 25 captured from
+ornith-1.5:9b, which showed child-element args, copied placeholders and an
+invented nested action, plus hand-written quirks for Llama 3.1, Qwen3,
+Mistral Nemo, Gemma 3 and Phi-4.
+
+### ADR-037 Agent navigation is browsing, gated by the URL guard
+
+Tether's zero-egress guarantee covers requests Tether makes; those still go
+only to configured model endpoints. Agent navigation is different: the
+browser loads pages on the user's behalf, as if the user clicked. Every
+navigation passes `checkUrl`: http(s) only; default-deny for banking,
+payment, government and webmail hosts; a user allow-list can override the
+defaults and a user block-list always wins. Phase 5 must also treat
+navigation as a possible exfiltration channel (an injected page steering the
+agent to a URL that carries user data), and add action tiers and
+confirmations.
+
+### ADR-038 Navigation waits for a loading → complete cycle
+
+The listener is attached before the navigation starts, and only a
+"loading" followed by "complete" ends the wait, so the previous page's
+status can't end it early. Same-document navigations never report
+"loading", so a complete tab after a 1.5 s grace period is accepted. A
+timeout resolves rather than fails, because a slow page is still usable.
+
+### ADR-039 extract is a model sub-call
+
+`extract(schema)` sends the fenced page text to the same model with a
+JSON-schema response format. Schemas can be shorthand (`{"price":"number"}`,
+`[{…}]`) and are expanded to JSON Schema. DOM-level extraction of tables
+and lists can join it in Phase 5.
+
+### ADR-040 Runs are stored on their assistant message; traces separately
+
+The live step timeline is saved on the assistant message (`agent`), so it
+renders after a reload and in history. Every step also goes to the
+`traces` table, with card numbers, SSN-like patterns and token-like strings
+redacted, ready for Phase 5's trace viewer.
+
+### ADR-041 Dependencies added in Phase 4
+
+None.
