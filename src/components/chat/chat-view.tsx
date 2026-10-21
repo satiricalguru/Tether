@@ -1,11 +1,15 @@
+import { Bot } from 'lucide-react';
 import { useEffect, useRef } from 'react';
 import {
   editAndResend,
   regenerate,
   sendUserMessage,
+  startAgentRun,
   startConversation,
   stopReply,
 } from '@/chat/runner';
+import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/cn';
 import { branchConversation, selectBranch, updateConversation } from '@/chat/store';
 import { siblingInfo } from '@/chat/tree';
 import { useChatUi } from '@/chat/ui-store';
@@ -88,7 +92,24 @@ export function ChatView() {
     if (el && pinnedToBottom.current) el.scrollTop = el.scrollHeight;
   }, [thread.length, lastContent]);
 
+  const agentMode = useChatUi((s) => s.agentMode);
+  const setAgentMode = useChatUi((s) => s.setAgentMode);
+
+  const runAgentTask = async (task: string) => {
+    pinnedToBottom.current = true;
+    const conv = conversation ?? (await startConversation(tabUrl));
+    if (!conversation) openConversation(conv.id);
+    // No upfront permission prompt: the run starts with the access Tether
+    // has; pages it can't read are reported as such, and the run card
+    // offers "Allow on all sites".
+    await startAgentRun(conv, task);
+  };
+
   const send = async (text: string) => {
+    if (agentMode && text) {
+      await runAgentTask(text);
+      return;
+    }
     pinnedToBottom.current = true;
     // Attachments as budgeted (trimmed to fit), captured before the draft resets.
     const attachments = budget?.fitted ?? drafted;
@@ -186,6 +207,9 @@ export function ChatView() {
           disabled={!conversation && !settings.selection.model && !rule}
           enterToSend={settings.chat.enterToSend}
           onSend={(t) => void send(t)}
+          placeholder={
+            agentMode ? 'Describe a task, e.g. “find the cheapest boots on this site”' : undefined
+          }
           onStop={stop}
           toolbar={
             <>
@@ -201,6 +225,20 @@ export function ChatView() {
               {conversation && (
                 <ConversationSettingsButton conversation={conversation} settings={settings} />
               )}
+              <Button
+                type="button"
+                variant={agentMode ? 'secondary' : 'ghost'}
+                size="sm"
+                className={cn('h-7 px-2 text-xs', agentMode ? 'text-accent' : 'text-muted')}
+                aria-pressed={agentMode}
+                aria-label="Agent mode"
+                title="Agent mode: Tether browses to complete the task"
+                onClick={() => {
+                  setAgentMode(!agentMode);
+                }}
+              >
+                <Bot /> Agent
+              </Button>
             </>
           }
         />

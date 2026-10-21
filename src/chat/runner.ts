@@ -1,10 +1,11 @@
 import type { ChatMetrics } from '@/background/chat';
 import { isAbortError } from '@/lib/errors';
 import { sendMessage } from '@/lib/messaging';
-import { openStream, type StreamHandle } from '@/lib/ports';
+import { openStream } from '@/lib/ports';
 import { getSettings, matchSiteRule } from '@/lib/settings';
 import type { Attachment } from '@/context/attachments';
-import type { ConversationRecord, MessageRecord } from '@/lib/db';
+import type { AgentRunRecord, ConversationRecord, MessageRecord } from '@/lib/db';
+import { currentPageTab } from '@/platform/tabs';
 import { buildRequest } from './request';
 import { appendMessage, conversationMessages, createConversation, updateMessage } from './store';
 import { pathTo } from './tree';
@@ -17,7 +18,7 @@ import { useChatUi } from './ui-store';
  */
 
 const FLUSH_MS = 250;
-const inFlight = new Map<string, StreamHandle<'chat'>>();
+const inFlight = new Map<string, { abort: () => void }>();
 
 /** Ids of replies this panel is generating (for crash recovery on open). */
 export function activeReplyIds(): Set<string> {
@@ -172,4 +173,64 @@ export async function editAndResend(
     ...(user.attachments?.length ? { attachments: user.attachments } : {}),
   });
   await generateReply(conv, edited);
+}
+
+/** Start a browsing-agent run for `task` on the user's current page. */
+export async function startAgentRun(conv: ConversationRecord, task: string): Promise<void> {
+  const setLive = useChatUi.getState().setLive;
+  const user = await appendMessage(conv.id, conv.activeLeafId, {
+    role: 'user',
+    content: task,
+    agentTask: true,
+  });
+  const runId = crypto.randomUUID();
+  const agent: AgentRunRecord = { runId, status: 'running', steps: [] };
+  const reply = await appendMessage(conv.id, user.id, {
+    role: 'assistant',
+    content: '',
+    status: 'streaming',
+    agent,
+    instanceId: conv.instanceId,
+    model: conv.model,
+  });
+  setLive(reply.id, 'waiting');
+  const save = () => updateMessage(reply.id, { agent: { ...agent, steps: [...agent.steps] } });
+  try {
+    const tab = await currentPageTab();
+    if (tab?.id === undefined) throw new Error('Open the page you want the agent to start on.');
+    const stream = openStream('agent', {
+      runId,
+      task,
+      instanceId: conv.instanceId,
+      model: conv.model,
+      tabId: tab.id,
+      windowId: tab.windowId,
+    });
+    inFlight.set(reply.id, stream);
+    for await (const ev of stream) {
+      if (ev.type === 'tier') agent.tier = ev.tier;
+      else if (ev.type === 'thinking') setLive(reply.id, 'generating');
+      else agent.steps.push(ev.step);
+      await save();
+    }
+    const r = await stream.done;
+    agent.status = r.status;
+    if (r.result !== undefined) agent.result = r.result;
+    await updateMessage(reply.id, {
+      content: r.summary,
+      status: r.status === 'failed' ? 'error' : r.status === 'stopped' ? 'stopped' : 'done',
+      ...(r.status === 'failed' ? { error: { message: r.summary, code: 'E_AGENT_FAILED' } } : {}),
+      agent: { ...agent, steps: [...agent.steps] },
+    });
+  } catch (err) {
+    agent.status = isAbortError(err) ? 'stopped' : 'failed';
+    await updateMessage(reply.id, {
+      status: isAbortError(err) ? 'stopped' : 'error',
+      ...(isAbortError(err) ? {} : { error: { message: (err as Error).message } }),
+      agent: { ...agent, steps: [...agent.steps] },
+    });
+  } finally {
+    inFlight.delete(reply.id);
+    setLive(reply.id, null);
+  }
 }

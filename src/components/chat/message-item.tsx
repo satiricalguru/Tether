@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/cn';
 import type { MessageRecord } from '@/lib/db';
 import type { SiblingInfo } from '@/chat/tree';
+import { AgentRun } from './agent-run';
 import { AttachmentChips } from './attachment-chips';
 import { MetricsFooter } from './metrics-footer';
 
@@ -237,13 +238,14 @@ export function MessageItem({
           )}
         </div>
       )}
-      {statusText && (
+      {m.agent && <AgentRun run={m.agent} live={streaming} />}
+      {statusText && !m.agent && (
         <p className="animate-pulse text-xs text-muted" data-testid="msg-status" data-status={live}>
           {statusText}
         </p>
       )}
       {m.content && <Markdown text={m.content} streaming={streaming} />}
-      {streaming && !statusText && !m.content && !m.reasoning && (
+      {streaming && !statusText && !m.content && !m.reasoning && !m.agent && (
         <span className="inline-block h-4 w-2 animate-pulse bg-muted" aria-label="Generating" />
       )}
       {m.status === 'stopped' && <p className="text-xs text-muted">Stopped.</p>}
@@ -263,7 +265,7 @@ export function MessageItem({
         >
           <SiblingNav info={siblings} onSelect={onSelectSibling} />
           {m.content && <CopyAction text={m.content} />}
-          {onRegenerate && (
+          {onRegenerate && !m.agent && (
             <IconAction label="Regenerate" disabled={busy} onClick={onRegenerate}>
               <RotateCcw />
             </IconAction>

@@ -5,6 +5,9 @@ import type { ChatStatus } from '@/background/chat';
 interface ChatUiState {
   view: 'chat' | 'history';
   conversationId: string | null;
+  /** Send the next message as a browsing-agent task. */
+  agentMode: boolean;
+  setAgentMode: (on: boolean) => void;
   /** Live status of in-flight replies, by assistant message id. */
   live: Record<string, ChatStatus>;
   setView: (view: ChatUiState['view']) => void;
@@ -15,6 +18,10 @@ interface ChatUiState {
 export const useChatUi = create<ChatUiState>((set) => ({
   view: 'chat',
   conversationId: null,
+  agentMode: false,
+  setAgentMode: (agentMode) => {
+    set({ agentMode });
+  },
   live: {},
   setView: (view) => {
     set({ view });

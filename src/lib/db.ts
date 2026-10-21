@@ -1,5 +1,7 @@
 import Dexie, { type EntityTable } from 'dexie';
 import type { ChatMetrics } from '@/background/chat';
+import type { RunStatus, StepEvent } from '@/agent/loop';
+import type { ToolTier } from '@/agent/types';
 import type { Attachment } from '@/context/attachments';
 
 /**
@@ -31,6 +33,15 @@ export interface ConversationRecord {
   branchedFrom?: { conversationId: string; messageId: string };
 }
 
+/** An agent run, stored on the assistant message that reports it. */
+export interface AgentRunRecord {
+  runId: string;
+  status: RunStatus | 'running';
+  tier?: ToolTier;
+  steps: StepEvent[];
+  result?: unknown;
+}
+
 export type MessageRole = 'system' | 'user' | 'assistant' | 'tool';
 export type MessageStatus = 'streaming' | 'done' | 'stopped' | 'error';
 
@@ -49,6 +60,10 @@ export interface MessageRecord {
   metrics?: ChatMetrics;
   /** Page/selection/PDF context sent with a user message. */
   attachments?: Attachment[];
+  /** Set on the assistant message of an agent run. */
+  agent?: AgentRunRecord;
+  /** Set on a user message that was sent as an agent task. */
+  agentTask?: boolean;
   /** Which model produced an assistant message. */
   instanceId?: string;
   model?: string;
