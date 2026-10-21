@@ -39,6 +39,13 @@ export interface ChatPrefs {
   showReasoning: boolean;
 }
 
+export interface PagePrefs {
+  /** Show the highlight-to-ask bubble on sites Tether may read. */
+  bubble: boolean;
+  /** Translate target; empty = the browser's UI language. */
+  translateTo: string;
+}
+
 export interface ModelSelection {
   instanceId: string;
   model: string;
@@ -57,6 +64,7 @@ export interface Settings {
   reasoning: ReasoningMode;
   siteRules: SiteRule[];
   chat: ChatPrefs;
+  page: PagePrefs;
 }
 
 export const DEFAULT_SYSTEM_PROMPT =
@@ -76,6 +84,7 @@ export const DEFAULT_SETTINGS: Settings = {
   reasoning: 'auto',
   siteRules: [],
   chat: { enterToSend: true, showReasoning: false },
+  page: { bubble: true, translateTo: '' },
 };
 
 function sanitizeSiteRules(raw: unknown): SiteRule[] {

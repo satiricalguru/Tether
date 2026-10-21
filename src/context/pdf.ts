@@ -34,8 +34,6 @@ export interface ExtractPdfOptions {
   signal?: AbortSignal;
 }
 
-const CHROME_PDF_VIEWER = 'chrome-extension://mhjfbmdgcfjbbpaeojofohoefgiehjai/';
-
 type PdfJs = typeof PdfJsModule;
 
 let loading: Promise<PdfJs> | undefined;
@@ -50,36 +48,6 @@ function loadPdfJs(): Promise<PdfJs> {
     return pdfjs;
   })();
   return loading;
-}
-
-function viewerTarget(url: URL): string | undefined {
-  return url.searchParams.get('src') ?? url.searchParams.get('file') ?? undefined;
-}
-
-/** Unwrap Chrome's built-in PDF viewer URL to the document URL; identity otherwise. */
-export function pdfSourceUrl(url: string): string {
-  if (!url.startsWith(CHROME_PDF_VIEWER)) return url;
-  try {
-    return viewerTarget(new URL(url)) ?? url;
-  } catch {
-    return url;
-  }
-}
-
-/** Does this tab URL show a PDF? (path ends in .pdf, or Chrome's viewer pointing at one) */
-export function isPdfUrl(url: string | undefined): boolean {
-  if (!url) return false;
-  let parsed: URL;
-  try {
-    parsed = new URL(url);
-  } catch {
-    return false;
-  }
-  if (url.startsWith(CHROME_PDF_VIEWER)) {
-    const target = viewerTarget(parsed);
-    return target !== undefined && target !== url && isPdfUrl(target);
-  }
-  return /\.pdf$/i.test(parsed.pathname);
 }
 
 export function hasTextLayer(t: PdfText): boolean {
@@ -121,6 +89,8 @@ export function itemsToText(items: unknown[]): string {
 function abortError(signal: AbortSignal): Error {
   return signal.reason instanceof Error ? signal.reason : new DOMException('Aborted', 'AbortError');
 }
+
+export { isPdfUrl, pdfSourceUrl } from './pdf-url';
 
 export async function extractPdfText(
   data: ArrayBuffer | Uint8Array,

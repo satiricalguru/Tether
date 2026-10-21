@@ -12,6 +12,9 @@
  */
 
 import type { ChatDone, ChatStreamEvent, ChatStreamRequest } from '@/background/chat';
+import type { Attachment } from '@/context/attachments';
+import type { PageExtract } from '@/context/extract';
+import type { QuickAction } from '@/prompting/actions';
 import type { CandidateResult, ModelGroup, ProviderStatus } from '@/providers/registry';
 import type { Capabilities, ModelInfo, ProviderConfig } from '@/providers/types';
 
@@ -42,9 +45,46 @@ export interface MessageMap {
   };
   'bg:providers:remove': { req: { instanceId: string }; res: ProviderStatus[] };
   'bg:providers:reset-overrides': { req: { instanceId?: string }; res: undefined };
+  /** Extract a tab's readable content (injects the bridge if needed). */
+  'bg:context:page': { req: { tabId: number }; res: PageExtract };
+  /** Tabs in the current window, with whether Tether may read them. */
+  'bg:context:tabs': { req: { windowId?: number }; res: TabSummary[] };
+  /** From the highlight bubble: carry an inline answer into the side panel. */
+  'bg:pending:continue': {
+    req: { selection: string; prompt: string; answer: string; url: string; title: string };
+    res: { opened: boolean };
+  };
   'content:ping': { req: undefined; res: { url: string; title: string } };
+  'content:extract': { req: { maxChars?: number }; res: PageExtract };
   'offscreen:ping': { req: undefined; res: PingResponse };
 }
+
+export type TabAccess = 'granted' | 'needs-permission' | 'restricted';
+
+export interface TabSummary {
+  tabId: number;
+  windowId: number;
+  title: string;
+  url: string;
+  active: boolean;
+  access: TabAccess;
+  isPdf: boolean;
+}
+
+/** Work queued for the side panel by a context menu or the bubble (storage.session). */
+export type PendingAction =
+  | { id: string; kind: 'ask'; prompt: string; attachments: Attachment[]; createdAt: number }
+  | { id: string; kind: 'attach-page'; tabId: number; createdAt: number }
+  | {
+      id: string;
+      kind: 'continue';
+      prompt: string;
+      answer: string;
+      attachments: Attachment[];
+      createdAt: number;
+    };
+
+export const PENDING_KEY = 'tether:pending';
 
 export type MessageType = keyof MessageMap;
 export type MessageRequest<K extends MessageType> = MessageMap[K]['req'];
@@ -59,6 +99,12 @@ export interface StreamMap {
     req: { text: string; delayMs?: number };
     chunk: { token: string; index: number };
     done: { count: number };
+  };
+  /** A one-shot action on selected text, run entirely in the background. */
+  quick: {
+    req: { action: QuickAction; selection: string; question?: string; url: string; title: string };
+    chunk: ChatStreamEvent;
+    done: ChatDone & { prompt: string };
   };
   /** One generation against a provider, with status events and metrics. */
   chat: {

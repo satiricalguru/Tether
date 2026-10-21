@@ -1,5 +1,6 @@
 import Dexie, { type EntityTable } from 'dexie';
 import type { ChatMetrics } from '@/background/chat';
+import type { Attachment } from '@/context/attachments';
 
 /**
  * IndexedDB schema. Large and append-heavy data lives here; small settings
@@ -46,6 +47,8 @@ export interface MessageRecord {
   status?: MessageStatus;
   error?: { message: string; code?: string };
   metrics?: ChatMetrics;
+  /** Page/selection/PDF context sent with a user message. */
+  attachments?: Attachment[];
   /** Which model produced an assistant message. */
   instanceId?: string;
   model?: string;
