@@ -1,14 +1,14 @@
 import { useEffect, useState } from 'react';
 import { browser } from 'wxt/browser';
+import { currentPageTab } from '@/platform/tabs';
 
 /** URL of the active tab in this window (for per-site model rules). */
 export function useActiveTabUrl(): string | undefined {
   const [url, setUrl] = useState<string>();
   useEffect(() => {
     const read = () => {
-      void browser.tabs
-        .query({ active: true, currentWindow: true })
-        .then(([tab]) => {
+      void currentPageTab()
+        .then((tab) => {
           setUrl(tab?.url);
         })
         .catch(() => undefined);

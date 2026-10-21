@@ -2,6 +2,7 @@ import { browser } from 'wxt/browser';
 import { create } from 'zustand';
 import type { Attachment } from '@/context/attachments';
 import { toAttachment, toAttachmentFromExtract } from '@/context/build';
+import { currentPageTab } from '@/platform/tabs';
 import { HttpClient } from '@/providers/http';
 import { TetherError } from '@/lib/errors';
 import { sendMessage } from '@/lib/messaging';
@@ -55,7 +56,7 @@ export async function activeTab(): Promise<{
   title: string;
   windowId: number;
 } | null> {
-  const [tab] = await browser.tabs.query({ active: true, currentWindow: true });
+  const tab = await currentPageTab();
   if (tab?.id === undefined) return null;
   return { id: tab.id, url: tab.url ?? '', title: tab.title ?? '', windowId: tab.windowId };
 }
