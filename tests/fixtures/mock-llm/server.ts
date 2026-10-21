@@ -41,6 +41,24 @@ export interface MockOptions {
   apiKey?: string;
   reply?: string;
   tokenDelayMs?: number;
+  /**
+   * Ollama flavor: decide each reply from the request (for scripted agent
+   * runs). Return undefined to fall back to the default behaviour.
+   */
+  script?: (body: MockChatBody) => MockScriptReply | undefined;
+}
+
+export interface MockChatBody {
+  model?: string;
+  messages?: { role?: string; content?: unknown }[];
+  tools?: { function?: { name?: string } }[];
+  format?: unknown;
+  think?: unknown;
+}
+
+export interface MockScriptReply {
+  text?: string;
+  toolCalls?: { name: string; arguments: Record<string, unknown> }[];
 }
 
 export interface RecordedRequest {
@@ -263,6 +281,37 @@ export async function startMockLlm(opts: MockOptions): Promise<MockServer> {
     }
     if (name.includes('notools') && (body.tools?.length ?? 0) > 0) {
       sendJson(res, 400, { error: 'tools not supported' });
+      return;
+    }
+    const scripted = opts.script?.(body);
+    if (scripted) {
+      markLoaded(name);
+      const msg: Record<string, unknown> = { role: 'assistant', content: scripted.text ?? '' };
+      if (scripted.toolCalls?.length) {
+        msg.tool_calls = scripted.toolCalls.map((c) => ({
+          function: { name: c.name, arguments: c.arguments },
+        }));
+      }
+      const final = {
+        model: name,
+        created_at: new Date().toISOString(),
+        message: { role: 'assistant', content: '' },
+        done_reason: 'stop',
+        done: true,
+        prompt_eval_count: promptTokens(body.messages),
+        eval_count: 5,
+        eval_duration: 5_000_000,
+      };
+      if (body.stream === false) {
+        sendJson(res, 200, { ...final, message: msg });
+        return;
+      }
+      res.writeHead(200, { 'content-type': 'application/x-ndjson' });
+      res.write(
+        `${JSON.stringify({ model: name, created_at: new Date().toISOString(), message: msg, done: false })}\n`,
+      );
+      res.write(`${JSON.stringify(final)}\n`);
+      res.end();
       return;
     }
     const wasCold = name.includes('cold') && !known.loaded;

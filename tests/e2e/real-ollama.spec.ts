@@ -1,7 +1,7 @@
 /// <reference types="chrome" />
-import { spawn, type ChildProcess } from 'node:child_process';
 import { expect, test } from './fixtures';
 import { configureProviders } from './helpers';
+import { MAIN_OLLAMA as MAIN, startTempOllama, type TempOllama } from './temp-ollama';
 
 /**
  * Opt-in: the real extension against a real Ollama and model.
@@ -16,7 +16,6 @@ import { configureProviders } from './helpers';
 
 const ENABLED = process.env.TETHER_REAL_OLLAMA === '1';
 const MODEL = process.env.TETHER_REAL_MODEL ?? 'ornith-1.5:9b';
-const MAIN = 'http://127.0.0.1:11434';
 const TEMP_PORT = 11435;
 const TEMP = `http://127.0.0.1:${TEMP_PORT}`;
 
@@ -24,40 +23,14 @@ test.describe('real Ollama', () => {
   test.skip(!ENABLED, 'set TETHER_REAL_OLLAMA=1 to run against a local Ollama');
   test.describe.configure({ timeout: 240_000 });
 
-  let server: ChildProcess | undefined;
+  let server: TempOllama | undefined;
 
   test.beforeAll(async () => {
-    await fetch(`${MAIN}/api/generate`, {
-      method: 'POST',
-      body: JSON.stringify({ model: MODEL, keep_alive: 0 }),
-    }).catch(() => undefined);
-    server = spawn('ollama', ['serve'], {
-      env: {
-        ...process.env,
-        OLLAMA_HOST: `127.0.0.1:${TEMP_PORT}`,
-        OLLAMA_ORIGINS: 'chrome-extension://*',
-      },
-      stdio: 'ignore',
-    });
-    for (let i = 0; i < 100; i++) {
-      if (
-        await fetch(`${TEMP}/api/version`).then(
-          (r) => r.ok,
-          () => false,
-        )
-      )
-        return;
-      await new Promise((r) => setTimeout(r, 200));
-    }
-    throw new Error('temporary ollama serve did not start');
+    server = await startTempOllama(MODEL, TEMP_PORT);
   });
 
   test.afterAll(async () => {
-    await fetch(`${TEMP}/api/generate`, {
-      method: 'POST',
-      body: JSON.stringify({ model: MODEL, keep_alive: 0 }),
-    }).catch(() => undefined);
-    server?.kill('SIGTERM');
+    await server?.stop();
   });
 
   test('the Doctor reads the main instance correctly (blocked unless OLLAMA_ORIGINS allows it)', async ({

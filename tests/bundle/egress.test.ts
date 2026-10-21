@@ -60,6 +60,12 @@ const NEVER_FETCHED: { pattern: RegExp; reason: string; file?: RegExp }[] = [
     reason: 'Dexie error-message help links',
   },
   {
+    pattern: /^https:\/\/\$\{\w+\.replace\(\/\^$/,
+    reason:
+      'normalizeAgentUrl adds a scheme to a model-chosen URL for tab navigation: browsing on the user’s behalf, gated by the agent URL guard, not a request Tether makes',
+    file: /^background\.js$/,
+  },
+  {
     pattern: /^http:\/\/\$\{\w+\}$/,
     reason:
       'normalizeBaseUrl adds a default scheme to a user-entered URL; where it goes is decided by the runtime allowlist',
