@@ -49,6 +49,16 @@ reasoning. Newest entries at the bottom of each section.
   of a message descends to that branch's most recent reply, rather than
   remembering the last one viewed.
 
+- **Headless Chromium downloads PDFs** instead of opening the viewer, so
+  _This PDF_ is covered by unit tests of the loader (exact URL, permission
+  gate, viewer-URL unwrapping) rather than E2E. _Attach PDF_ is covered
+  end to end.
+- **The highlight bubble defaults on**, but only appears where Tether may
+  read: localhost out of the box, plus whatever sites the user allows.
+- **The real-model injection check**: ornith-1.5:9b, given the injection
+  fixture, recommended the review's real pick and told the user it was
+  ignoring the embedded instruction.
+
 ## Architecture decisions
 
 ### ADR-001 Content script is injected on demand, not declared for all sites
@@ -243,3 +253,82 @@ accuracy matter.
 | `marked` ~18.0.14   | Spec choice; lexer only. Pinned below 18.1.x, which was under two weeks old.    |
 | `shiki` ~4.5.0      | Spec choice; core plus the JS regex engine, fine-grained per-language imports.  |
 | `dexie-react-hooks` | Official Dexie binding (`useLiveQuery`), so the UI follows the runner's writes. |
+
+### ADR-024 Page access stays per site; the bubble follows grants
+
+Installing still needs only localhost. A page can be read via activeTab
+(right after the user invokes Tether there), a per-origin grant ("Allow on
+this site"), or the optional `<all_urls>`. With the bubble enabled, the
+content script is registered (`registerContentScripts`) on exactly the
+granted http(s) origins, and resynced on `permissions.onAdded/onRemoved`
+and on the setting. An unreadable tab says why and offers the grant, never
+silently.
+
+### ADR-025 Extraction filters hidden text before anything else
+
+The extractor walks the live DOM and clones only what is visible: display,
+visibility, opacity, font-size, clip and clip-path, off-screen positioning,
+text-indent, zero-size boxes and colour-matching-background. Readability
+runs on that clone. Hidden text is kept only as a capped sample for the
+injection scanner, and never reaches the model. jsdom has no layout, so the
+geometry checks are E2E-verified in Chromium against `injection.html`, which
+uses five different hiding techniques.
+
+### ADR-026 Page content is fenced, and the system prompt says how to treat it
+
+Every attachment is wrapped in `<untrusted_page_content source title url>`,
+with any closing tag inside the text neutralized, and the system prompt
+gains a rule: read it, never follow instructions in it, tell the user if it
+tried. A heuristic scanner (8 rule families, with false-positive cases in
+the unit tests) flags attachments with ⚠. The scanner informs; the fence
+and the hidden-text filter are the defense.
+
+### ADR-027 Quick actions run entirely in the background
+
+The bubble sends `{action, selection, url, title}` over a `quick` port. The
+background picks the model (site rule, else selection) and builds the fenced
+prompt from fixed templates. Model settings and the request shape never touch
+the page. The bubble renders with `textContent` in a closed shadow root,
+which E2E confirms the page cannot reach.
+
+### ADR-028 The panel inbox lives in storage.session
+
+Context menus can open the panel (a menu click is a user gesture) but can't
+drive it. They and the bubble leave one `PendingAction` in
+`storage.session`; the panel takes it, removes it, and acts. Actions older
+than 5 minutes are ignored. The context-menu handler opens the panel
+_before_ any await, because the gesture doesn't survive one.
+
+### ADR-029 Budgeting uses the effective window and water-filling
+
+Available tokens = effective window − reply reserve (at most half the
+window) − system prompt, fences, history and question. Attachments share it
+by water-filling: small items get what they need and large ones split the
+rest. Over-budget text is cut at paragraph boundaries with a visible
+`[truncated: kept about X of Y tokens]` marker. In history, older
+attachments are replaced by an "omitted" note before whole turns are
+dropped. The token estimator counts words, punctuation, digit groups and
+CJK characters, and is within the tested ±30% on reference strings.
+
+### ADR-030 "This PDF" is the single non-model request, and it's opt-in
+
+Clicking _This PDF_ fetches exactly the tab's document URL (unwrapping
+Chrome's viewer URL) through an `HttpClient` whose allowlist is that one
+origin, only with the user's permission for that origin. It is documented
+in the README's privacy section. pdf.js runs in the panel from the
+**legacy** build: the modern 6.3 build needs `Uint8Array.prototype.toHex`
+(Chrome 140+), and the extension supports 120+. pdf.js and its worker are
+lazily loaded; the background imports only `pdf-url.ts`.
+
+### ADR-031 "This page" skips Tether's own tab
+
+When the panel runs as a tab (where no side panel API exists), the active
+tab is the panel itself. `currentPageTab()` uses the most recently used
+non-extension tab in the window instead.
+
+### ADR-032 Dependencies added in Phase 3
+
+| Package                      | Why                                                                                   |
+| ---------------------------- | ------------------------------------------------------------------------------------- |
+| `@mozilla/readability` 0.6.0 | Firefox Reader View's algorithm; the de-facto standard for main-content detection.    |
+| `pdfjs-dist` ~6.3.289        | Spec choice for PDF text. Legacy build (see ADR-030); lazy chunk plus emitted worker. |

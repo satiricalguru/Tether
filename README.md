@@ -12,11 +12,11 @@ telemetry.
 Works with Ollama, LM Studio, llama.cpp server and any OpenAI-compatible
 local server (vLLM, LocalAI, Jan, KoboldCpp, TabbyAPI, ...).
 
-> **Status: Phase 2 (chat).** A side-panel chat you can use every day. It
-> streams Markdown with highlighted code, and supports stop, regenerate,
-> edit-and-resend, branching, searchable history with export, per-chat model
-> and settings, and per-site default models. Page context, highlight-to-ask
-> and the computer-use agent come next. See [Roadmap](#roadmap).
+> **Status: Phase 3 (page context).** Chat about the page you're on, your
+> selection, every open tab or a PDF. Highlight text anywhere Tether may read
+> to explain, summarize, translate or improve it in place, or use the
+> right-click menu. Page text is always treated as untrusted data. The
+> computer-use agent comes next. See [Roadmap](#roadmap).
 
 ## Getting started
 
@@ -47,6 +47,27 @@ local server (vLLM, LocalAI, Jan, KoboldCpp, TabbyAPI, ...).
   fetched; they render as a link you can choose to open. Links only open on
   click. Raw HTML renders as text, and nothing is injected with `innerHTML`.
 
+### Page context
+
+- **Context chips** above the composer: _This page_, _Selection_, _All tabs_,
+  _This PDF_ and _Attach PDF_. Each shows its token cost. The total is
+  measured against the window your model actually runs with, and anything
+  that doesn't fit is trimmed at paragraph boundaries, visibly.
+- **Hidden text is never read.** `display:none`, zero-size or transparent
+  text, off-screen boxes and white-on-white tricks are left out, which closes
+  the classic prompt-injection channel.
+- **Pages can't instruct the model.** Page text is fenced as untrusted data,
+  and the model is told to report instructions it finds there rather than
+  follow them. Pages containing text addressed to an AI get a ⚠ on their chip.
+- **Highlight-to-ask**: select text for a small bubble (Explain, Summarize,
+  Translate, Improve, Ask…). The answer streams in place, and _Continue in
+  side panel_ carries it into a chat.
+- **Right-click**: _Explain / Summarize / Translate / Improve / Ask about
+  selection_, and _Ask Tether about this page_.
+- **Access is per site.** Tether can read a page right after you open it
+  there. To read a site at any time, or show the bubble on it, allow that
+  site (or all sites) when asked, or under _Settings → Pages_.
+
 Setup, the CORS fix for every OS, and troubleshooting for each backend are in
 [docs/providers.md](docs/providers.md).
 
@@ -64,6 +85,12 @@ configure. Out of the box it can reach only `localhost`, `127.0.0.1` and
   strings that are never requested (SVG namespace URIs, React's error-decoder
   link, a license comment), each listed with its reason in
   `tests/bundle/egress.test.ts`.
+
+**One exception, always user-initiated:** the _This PDF_ chip re-reads the
+PDF open in your tab, from that one address (usually the browser cache), so
+its text can be extracted. That is a request to the PDF's own site, made only
+when you click the chip and only with your permission for that site. _Attach
+PDF_ reads a local file and uses no network at all.
 
 All code is bundled; nothing is loaded from a CDN, and the extension CSP
 (`script-src 'self'`) forbids remote code.
@@ -126,6 +153,9 @@ src/
   chat/          conversation tree, request building, runner, export
   lib/           messaging, port streaming, settings, db, logger
   providers/     backend adapters, stream parsers, registry, setup doctor
+  context/       page extraction, injection scanner, token budget, PDFs
+  content/       highlight bubble (runs in pages)
+  prompting/     quick-action templates
   platform/      shims for browser-specific APIs (sidePanel, offscreen)
   components/ui/ vendored shadcn-style primitives
   hooks/         React hooks
@@ -146,7 +176,7 @@ DECISIONS.md     assumptions and architecture decisions
 | `activeTab`                             | Lets Tether read the tab you're on _only after_ you open it there, without blanket access to every site.                                                               |
 | `scripting`                             | Injects the page bridge (reading page content, highlight bubble, agent actions) into the active tab.                                                                   |
 | `tabs`                                  | Reads titles/URLs of open tabs for multi-tab context and lets the agent open, switch and close tabs.                                                                   |
-| `contextMenus`                          | "Ask Tether about this" on right-click.                                                                                                                                |
+| `contextMenus`                          | "Explain / Summarize / Ask Tether about this page" on right-click.                                                                                                     |
 | `offscreen`                             | A hidden page for work the service worker can't do (drawing set-of-marks screenshots).                                                                                 |
 | `alarms`                                | Keeps the background worker alive during long generations (e.g. while a model is loading).                                                                             |
 | `commands`                              | Keyboard shortcuts (Ctrl/Cmd+Shift+L to open).                                                                                                                         |
@@ -160,9 +190,9 @@ DECISIONS.md     assumptions and architecture decisions
 | Phase | Scope                                                            | Status |
 | ----- | ---------------------------------------------------------------- | ------ |
 | 0     | Scaffold, messaging, persistence, CI, E2E harness                | ✅     |
-| 1     | Provider adapters, discovery, Setup Doctor (CORS), stream parser | —      |
-| 2     | Chat: streaming markdown, model switcher, metrics, history       | —      |
-| 3     | Page context, highlight-to-ask, context menus, PDFs              | —      |
+| 1     | Provider adapters, discovery, Setup Doctor (CORS), stream parser | ✅     |
+| 2     | Chat: streaming markdown, model switcher, metrics, history       | ✅     |
+| 3     | Page context, highlight-to-ask, context menus, PDFs              | ✅     |
 | 4     | Three-tier tool calling, fallback parser, grammars               | —      |
 | 5     | Computer use: observation, actions, guard rails, traces          | —      |
 | 6     | Local RAG, inline compose, prompt library                        | —      |
