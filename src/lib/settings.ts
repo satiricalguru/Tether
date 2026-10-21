@@ -46,6 +46,20 @@ export interface PagePrefs {
   translateTo: string;
 }
 
+export type ToolTierSetting = 'auto' | 'native' | 'constrained' | 'text';
+
+export interface AgentPrefs {
+  /** Force a tool-calling tier; 'auto' picks per model. */
+  toolTier: ToolTierSetting;
+  maxSteps: number;
+  maxMinutes: number;
+  maxConsecutiveFailures: number;
+  /** Hosts the agent may visit even if a default rule blocks them. */
+  allowDomains: string[];
+  /** Hosts the agent may never visit. */
+  blockDomains: string[];
+}
+
 export interface ModelSelection {
   instanceId: string;
   model: string;
@@ -65,6 +79,7 @@ export interface Settings {
   siteRules: SiteRule[];
   chat: ChatPrefs;
   page: PagePrefs;
+  agent: AgentPrefs;
 }
 
 export const DEFAULT_SYSTEM_PROMPT =
@@ -85,6 +100,14 @@ export const DEFAULT_SETTINGS: Settings = {
   siteRules: [],
   chat: { enterToSend: true, showReasoning: false },
   page: { bubble: true, translateTo: '' },
+  agent: {
+    toolTier: 'auto',
+    maxSteps: 15,
+    maxMinutes: 5,
+    maxConsecutiveFailures: 3,
+    allowDomains: [],
+    blockDomains: [],
+  },
 };
 
 function sanitizeSiteRules(raw: unknown): SiteRule[] {
