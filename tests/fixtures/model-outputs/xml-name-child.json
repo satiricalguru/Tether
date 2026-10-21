@@ -1,0 +1,11 @@
+{
+  "id": "xml-name-child",
+  "source": "handwritten",
+  "model": "Mistral Nemo 12B",
+  "raw": "<action><name>reload</name><args>{}</args></action>",
+  "expect": {
+    "name": "reload",
+    "args": {}
+  },
+  "note": "<name> child and empty JSON args."
+}

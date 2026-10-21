@@ -1,0 +1,30 @@
+{
+  "id": "ornith-t5-temp0-nothink",
+  "source": "captured",
+  "model": "ornith-1.5:9b (Q4_K_M, Ollama 0.40.6)",
+  "settings": {
+    "temperature": 0,
+    "think": false,
+    "prompt": "protocol"
+  },
+  "raw": "<thinking>\nThe task is to get the name and price of every product on this page as structured data. I can use the extract action with a schema to get this data. The products are shown as links [7] and [8] with text \"Dell XPS 13 — $899\" and \"MacBook Air M3 — $1,099\".\n\nLet me use the extract action with a schema for product name and price.\n</thinking>\n\n<action name=\"extract\">\n  <arg name=\"schema\">\n    {\n      \"type\": \"array\",\n      \"items\": {\n        \"type\": \"object\",\n        \"properties\": {\n          \"name\": {\"type\": \"string\"},\n          \"price\": {\"type\": \"string\"}\n        }\n      }\n    }\n  </arg>\n</action>",
+  "expect": {
+    "name": "extract",
+    "args": {
+      "schema": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "name": {
+              "type": "string"
+            },
+            "price": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    }
+  }
+}

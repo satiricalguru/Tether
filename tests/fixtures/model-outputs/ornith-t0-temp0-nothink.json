@@ -1,0 +1,19 @@
+{
+  "id": "ornith-t0-temp0-nothink",
+  "source": "captured",
+  "model": "ornith-1.5:9b (Q4_K_M, Ollama 0.40.6)",
+  "settings": {
+    "temperature": 0,
+    "think": false,
+    "prompt": "protocol"
+  },
+  "raw": "<thinking>\nI need to search for \"gaming laptop\". There's a search textbox [1] and a Search button [2]. I'll type \"gaming laptop\" into the search box and submit.\n</thinking>\n\n<action name=\"type\">\n  <arg name=\"id\">1</arg>\n  <arg name=\"text\">gaming laptop</arg>\n  <arg name=\"submit\">true</arg>\n</action>",
+  "expect": {
+    "name": "type",
+    "args": {
+      "id": 1,
+      "text": "gaming laptop",
+      "submit": true
+    }
+  }
+}

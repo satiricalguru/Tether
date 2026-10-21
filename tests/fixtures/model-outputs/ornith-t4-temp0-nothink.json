@@ -1,0 +1,19 @@
+{
+  "id": "ornith-t4-temp0-nothink",
+  "source": "captured",
+  "model": "ornith-1.5:9b (Q4_K_M, Ollama 0.40.6)",
+  "settings": {
+    "temperature": 0,
+    "think": false,
+    "prompt": "protocol"
+  },
+  "raw": "<thinking>\nThe user has already found the answer: the cheapest laptop is the Dell XPS 13 at $899. The task is to finish and report it. I should use the done action to report the result.\n</thinking>\n\n<action name=\"done\">\n  <summary>Found the cheapest laptop: Dell XPS 13 at $899.</summary>\n  <result>The cheapest laptop is the Dell XPS 13 at $899.</result>\n</action>",
+  "expect": {
+    "name": "done",
+    "args": {
+      "summary": "Found the cheapest laptop: Dell XPS 13 at $899.",
+      "result": "The cheapest laptop is the Dell XPS 13 at $899."
+    }
+  },
+  "note": "done() arguments as child elements."
+}

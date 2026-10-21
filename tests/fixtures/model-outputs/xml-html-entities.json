@@ -1,0 +1,14 @@
+{
+  "id": "xml-html-entities",
+  "source": "handwritten",
+  "model": "Llama 3.1 8B",
+  "raw": "<action name=\"type\"><arg name=\"id\">2</arg><arg name=\"text\">AT&amp;T &lt;deal&gt;</arg></action>",
+  "expect": {
+    "name": "type",
+    "args": {
+      "id": 2,
+      "text": "AT&T <deal>"
+    }
+  },
+  "note": "HTML-escaped value."
+}

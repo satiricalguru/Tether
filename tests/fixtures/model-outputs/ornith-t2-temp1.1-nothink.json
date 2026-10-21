@@ -1,0 +1,15 @@
+{
+  "id": "ornith-t2-temp1.1-nothink",
+  "source": "captured",
+  "model": "ornith-1.5:9b (Q4_K_M, Ollama 0.40.6)",
+  "settings": {
+    "temperature": 1.1,
+    "think": false,
+    "prompt": "protocol"
+  },
+  "raw": "<thinking>The task is to sort results by price, lowest first. I see a combobox labeled \"Sort by\" with value \"Relevance\". I need to open it and select the appropriate option. Let me first interact with the dropdown.</thinking>\n\n<action name=\"interact\">\n  <id>6</id>\n  <action>openMenu</action>\n</action>",
+  "expect": {
+    "error": "Unknown action \"interact\". Available actions: navigate, back"
+  },
+  "note": "Invented an \"interact\" action with a nested <action> element."
+}

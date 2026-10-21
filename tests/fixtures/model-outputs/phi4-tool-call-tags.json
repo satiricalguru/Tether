@@ -1,0 +1,14 @@
+{
+  "id": "phi4-tool-call-tags",
+  "source": "handwritten",
+  "model": "Phi-4 14B",
+  "raw": "<|tool_call|>[{\"name\": \"waitFor\", \"arguments\": {\"condition\": \"results\", \"timeoutMs\": 5000}}]<|/tool_call|>",
+  "expect": {
+    "name": "waitFor",
+    "args": {
+      "condition": "results",
+      "timeoutMs": 5000
+    }
+  },
+  "note": "Phi tool-call markers."
+}

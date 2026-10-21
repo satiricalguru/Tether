@@ -1,0 +1,15 @@
+{
+  "id": "ornith-t6-temp0.7-think",
+  "source": "captured",
+  "model": "ornith-1.5:9b (Q4_K_M, Ollama 0.40.6)",
+  "settings": {
+    "temperature": 0.7,
+    "think": true,
+    "prompt": "protocol"
+  },
+  "raw": "<thinking>\nThe user wants to buy a nice gift for their mother. I see two products: a Dell XPS 13 ($899) and a MacBook Air M3 ($1,099). Both are laptops. Let me explore the products to make an informed decision. I'll start by clicking on the Dell XPS 13 to see its details.",
+  "expect": {
+    "error": "Your reply ended inside <thinking> with no action. Keep the "
+  },
+  "note": "Ran out of tokens inside <thinking> (num_predict 300)."
+}

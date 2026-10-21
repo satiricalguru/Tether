@@ -1,0 +1,13 @@
+{
+  "id": "mistral-nemo-python-dict",
+  "source": "handwritten",
+  "model": "Mistral Nemo 12B",
+  "raw": "[TOOL_CALLS] [{'name': 'click', 'arguments': {'id': 4}}]",
+  "expect": {
+    "name": "click",
+    "args": {
+      "id": 4
+    }
+  },
+  "note": "Python-style single quotes in a JSON context; accepted via the Python-literal fallback."
+}

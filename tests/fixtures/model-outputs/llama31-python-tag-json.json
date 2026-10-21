@@ -1,0 +1,13 @@
+{
+  "id": "llama31-python-tag-json",
+  "source": "handwritten",
+  "model": "Llama 3.1 8B",
+  "raw": "<|python_tag|>{\"name\": \"navigate\", \"parameters\": {\"url\": \"https://news.ycombinator.com\"}}<|eom_id|>",
+  "expect": {
+    "name": "navigate",
+    "args": {
+      "url": "https://news.ycombinator.com"
+    }
+  },
+  "note": "Llama 3.1 built-in tool format leaking into content."
+}

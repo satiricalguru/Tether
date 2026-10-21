@@ -1,0 +1,10 @@
+{
+  "id": "xml-unknown-with-hint",
+  "source": "handwritten",
+  "model": "Gemma 3 12B",
+  "raw": "<action name=\"clik\"><arg name=\"id\">3</arg></action>",
+  "expect": {
+    "error": "Did you mean \"click\"?"
+  },
+  "note": "Short names need an exact match, but get a hint."
+}

@@ -1,0 +1,14 @@
+{
+  "id": "gemma3-tool-code",
+  "source": "handwritten",
+  "model": "Gemma 3 12B",
+  "raw": "```tool_code\nprint(default_api.check(id=5, state=True))\n```",
+  "expect": {
+    "name": "check",
+    "args": {
+      "id": 5,
+      "state": true
+    }
+  },
+  "note": "Gemma tool_code block with Python literals."
+}

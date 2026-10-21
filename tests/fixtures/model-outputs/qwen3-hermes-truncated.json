@@ -1,0 +1,10 @@
+{
+  "id": "qwen3-hermes-truncated",
+  "source": "handwritten",
+  "model": "Qwen3 8B",
+  "raw": "<tool_call>\n{\"name\": \"type\", \"arguments\": {\"id\": 1, \"text\": \"wireless head",
+  "expect": {
+    "error": "cut off inside the tool call JSON"
+  },
+  "note": "Hit the token limit mid-JSON."
+}

@@ -1,0 +1,13 @@
+{
+  "id": "xml-unquoted-name-fence",
+  "source": "handwritten",
+  "model": "Gemma 3 12B",
+  "raw": "```xml\n<action name=hover>\n<arg name=id>9</arg>\n</action>\n```",
+  "expect": {
+    "name": "hover",
+    "args": {
+      "id": 9
+    }
+  },
+  "note": "Markdown fence, unquoted attribute values."
+}

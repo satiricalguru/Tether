@@ -1,0 +1,18 @@
+{
+  "id": "ornith-t2-temp0-nothink",
+  "source": "captured",
+  "model": "ornith-1.5:9b (Q4_K_M, Ollama 0.40.6)",
+  "settings": {
+    "temperature": 0,
+    "think": false,
+    "prompt": "protocol"
+  },
+  "raw": "<thinking>The task is to sort the results by price, lowest first. There is a \"Sort by\" combobox (element [6]) currently set to \"Relevance\". I need to interact with it to change the sort order. Let me select the appropriate option for price, lowest first.</thinking>\n\n<action name=\"select\">\n  <arg name=\"id\">6</arg>\n  <arg name=\"option\">Price, lowest first</arg>\n</action>",
+  "expect": {
+    "name": "select",
+    "args": {
+      "id": 6,
+      "option": "Price, lowest first"
+    }
+  }
+}

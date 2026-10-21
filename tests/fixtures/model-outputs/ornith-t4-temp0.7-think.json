@@ -1,0 +1,18 @@
+{
+  "id": "ornith-t4-temp0.7-think",
+  "source": "captured",
+  "model": "ornith-1.5:9b (Q4_K_M, Ollama 0.40.6)",
+  "settings": {
+    "temperature": 0.7,
+    "think": true,
+    "prompt": "protocol"
+  },
+  "raw": "<thinking>\nThe user has already found the answer and wants me to report it. I can finish the task by reporting the cheapest laptop.\n</thinking>\n\n<action name=\"done\">\n  <summary>\n    The cheapest laptop at Example Shop is the Dell XPS 13 at $899.\n  </summary>\n  <result>\n    After reviewing the available laptops, the cheapest laptop is the **Dell XPS 13 at $899**. This is the lowest-priced laptop option on the store.\n  </result>\n</action>",
+  "expect": {
+    "name": "done",
+    "args": {
+      "summary": "The cheapest laptop at Example Shop is the Dell XPS 13 at $899.",
+      "result": "After reviewing the available laptops, the cheapest laptop is the **Dell XPS 13 at $899**. This is the lowest-priced laptop option on the store."
+    }
+  }
+}

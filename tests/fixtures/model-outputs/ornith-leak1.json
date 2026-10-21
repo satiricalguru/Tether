@@ -1,0 +1,18 @@
+{
+  "id": "ornith-leak1",
+  "source": "captured",
+  "model": "ornith-1.5:9b (Q4_K_M, Ollama 0.40.6)",
+  "settings": {
+    "temperature": 0.7,
+    "think": false,
+    "prompt": "leak"
+  },
+  "raw": "I'll help you search for and browse products in this shop. Let me start by exploring the page and understanding what's available.\n\nLet me click on the search box to look for products:\n\n[{\"type\":\"function\",\"function\":{\"name\":\"click\",\"parameters\":{\"id\":1}}}]",
+  "expect": {
+    "name": "click",
+    "args": {
+      "id": 1
+    }
+  },
+  "note": "No protocol: leaked an OpenAI-style tool_calls array as bare JSON."
+}

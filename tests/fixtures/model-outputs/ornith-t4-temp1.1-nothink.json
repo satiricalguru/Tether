@@ -1,0 +1,38 @@
+{
+  "id": "ornith-t4-temp1.1-nothink",
+  "source": "captured",
+  "model": "ornith-1.5:9b (Q4_K_M, Ollama 0.40.6)",
+  "settings": {
+    "temperature": 1.1,
+    "think": false,
+    "prompt": "protocol"
+  },
+  "raw": "<thinking>\nThe user says they already found the answer: the cheapest laptop is the Dell XPS 13 at $899. I should verify this by checking the page content, then report the result and finish the task.\n</thinking>\n\n<action name=\"extract\">\n  <schema>\n    {\n      \"type\": \"object\",\n      \"properties\": {\n        \"cheapest_laptop\": {\n          \"type\": \"object\",\n          \"properties\": {\n            \"name\": {\"type\": \"string\"},\n            \"price\": {\"type\": \"number\"},\n            \"currency\": {\"type\": \"string\"}\n          },\n          \"required\": [\"name\", \"price\"]\n        }\n      },\n      \"required\": [\"cheapest_laptop\"]\n    }\n  </schema>\n</action>",
+  "expect": {
+    "name": "extract",
+    "args": {
+      "schema": {
+        "type": "object",
+        "properties": {
+          "cheapest_laptop": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "price": {
+                "type": "number"
+              },
+              "currency": {
+                "type": "string"
+              }
+            },
+            "required": ["name", "price"]
+          }
+        },
+        "required": ["cheapest_laptop"]
+      }
+    }
+  },
+  "note": "extract schema as a multi-line JSON child element."
+}

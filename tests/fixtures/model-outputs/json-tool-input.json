@@ -1,0 +1,13 @@
+{
+  "id": "json-tool-input",
+  "source": "handwritten",
+  "model": "Mistral Nemo 12B",
+  "raw": "Action:\n```json\n{\"tool\": \"ask_user\", \"input\": {\"question\": \"Which size do you need?\"}}\n```",
+  "expect": {
+    "name": "askUser",
+    "args": {
+      "question": "Which size do you need?"
+    }
+  },
+  "note": "LangChain-style keys inside a json fence."
+}

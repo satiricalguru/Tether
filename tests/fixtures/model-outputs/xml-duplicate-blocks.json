@@ -1,0 +1,11 @@
+{
+  "id": "xml-duplicate-blocks",
+  "source": "handwritten",
+  "model": "Gemma 3 12B",
+  "raw": "<action name=\"back\"></action>\n<action name=\"back\"></action>",
+  "expect": {
+    "name": "back",
+    "args": {}
+  },
+  "note": "Same block twice."
+}

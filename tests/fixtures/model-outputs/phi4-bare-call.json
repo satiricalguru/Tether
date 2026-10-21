@@ -1,0 +1,13 @@
+{
+  "id": "phi4-bare-call",
+  "source": "handwritten",
+  "model": "Phi-4 14B",
+  "raw": "I will press Enter now.\n\npressKey(key=\"Enter\")",
+  "expect": {
+    "name": "pressKey",
+    "args": {
+      "key": "Enter"
+    }
+  },
+  "note": "Bare Python-style call after prose."
+}

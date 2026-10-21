@@ -1,0 +1,10 @@
+{
+  "id": "llama31-prose-only",
+  "source": "handwritten",
+  "model": "Llama 3.1 8B",
+  "raw": "To search for laptops, you should type \"laptop\" into the search box and press the Search button.",
+  "expect": {
+    "error": "No action found"
+  },
+  "note": "Answers the user instead of acting."
+}

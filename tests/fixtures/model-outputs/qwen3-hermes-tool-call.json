@@ -1,0 +1,15 @@
+{
+  "id": "qwen3-hermes-tool-call",
+  "source": "handwritten",
+  "model": "Qwen3 8B",
+  "raw": "<think>\nThe search box is element 1.\n</think>\n\n<tool_call>\n{\"name\": \"type\", \"arguments\": {\"id\": 1, \"text\": \"laptop\", \"submit\": true}}\n</tool_call>",
+  "expect": {
+    "name": "type",
+    "args": {
+      "id": 1,
+      "text": "laptop",
+      "submit": true
+    }
+  },
+  "note": "Qwen chat-template tool format with thinking."
+}

@@ -1,0 +1,33 @@
+{
+  "id": "ornith-t5-temp0.7-think",
+  "source": "captured",
+  "model": "ornith-1.5:9b (Q4_K_M, Ollama 0.40.6)",
+  "settings": {
+    "temperature": 0.7,
+    "think": true,
+    "prompt": "protocol"
+  },
+  "raw": "<thinking>\nThe task is to extract the name and price of every product on this page as structured data. I'll use the extract action with a schema that captures product name and price.\n</thinking>\n\n<action name=\"extract\">\n  <schema>\n    {\n      \"type\": \"array\",\n      \"items\": {\n        \"type\": \"object\",\n        \"properties\": {\n          \"name\": {\n            \"type\": \"string\",\n            \"description\": \"Product name\"\n          },\n          \"price\": {\n            \"type\": \"number\",\n            \"description\": \"Product price\"\n          }\n        },\n        \"required\": [\"name\", \"price\"]\n      }\n    }\n  </schema>\n</action>",
+  "expect": {
+    "name": "extract",
+    "args": {
+      "schema": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "name": {
+              "type": "string",
+              "description": "Product name"
+            },
+            "price": {
+              "type": "number",
+              "description": "Product price"
+            }
+          },
+          "required": ["name", "price"]
+        }
+      }
+    }
+  }
+}

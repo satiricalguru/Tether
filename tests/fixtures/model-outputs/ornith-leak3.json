@@ -1,0 +1,18 @@
+{
+  "id": "ornith-leak3",
+  "source": "captured",
+  "model": "ornith-1.5:9b (Q4_K_M, Ollama 0.40.6)",
+  "settings": {
+    "temperature": 0.7,
+    "think": false,
+    "prompt": "leak"
+  },
+  "raw": "I'll open the deals page for you in a new tab.\n\nSince I don't have a dedicated \"open in new tab\" function, I'll navigate directly to the deals URL:\n\n[function] navigate(url=\"https://shop.example.com/deals\")",
+  "expect": {
+    "name": "navigate",
+    "args": {
+      "url": "https://shop.example.com/deals"
+    }
+  },
+  "note": "No protocol: \"[function] navigate(url=…)\" Python-style call."
+}

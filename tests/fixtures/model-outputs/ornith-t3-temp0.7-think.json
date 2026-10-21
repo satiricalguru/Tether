@@ -1,0 +1,17 @@
+{
+  "id": "ornith-t3-temp0.7-think",
+  "source": "captured",
+  "model": "ornith-1.5:9b (Q4_K_M, Ollama 0.40.6)",
+  "settings": {
+    "temperature": 0.7,
+    "think": true,
+    "prompt": "protocol"
+  },
+  "raw": "<thinking>The task is to open the deals page in a new tab. I'll use the newTab action with the deals URL.</thinking>\n<action name=\"newTab\">\n  <url>https://shop.example.com/deals</url>\n</action>",
+  "expect": {
+    "name": "newTab",
+    "args": {
+      "url": "https://shop.example.com/deals"
+    }
+  }
+}

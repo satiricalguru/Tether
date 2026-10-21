@@ -1,0 +1,13 @@
+{
+  "id": "json-thought-action-args",
+  "source": "handwritten",
+  "model": "Phi-4 14B",
+  "raw": "{\"thought\": \"Open the Phones category.\", \"action\": \"click\", \"args\": {\"id\": 4}}",
+  "expect": {
+    "name": "click",
+    "args": {
+      "id": 4
+    }
+  },
+  "note": "Tier-2 shape emitted in tier 3."
+}

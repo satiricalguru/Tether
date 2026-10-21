@@ -1,0 +1,13 @@
+{
+  "id": "llama31-type-function-json",
+  "source": "handwritten",
+  "model": "Llama 3.1 8B",
+  "raw": "Sure! Here is the function call:\n\n{\"type\": \"function\", \"name\": \"click\", \"parameters\": {\"id\": \"7\"}}",
+  "expect": {
+    "name": "click",
+    "args": {
+      "id": "7"
+    }
+  },
+  "note": "JSON with a string-typed id; the validator coerces it."
+}

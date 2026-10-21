@@ -1,0 +1,13 @@
+{
+  "id": "xml-near-miss-name",
+  "source": "handwritten",
+  "model": "Llama 3.1 8B",
+  "raw": "<action name=\"navigat\"><arg name=\"url\">https://example.com</arg></action>",
+  "expect": {
+    "name": "navigate",
+    "args": {
+      "url": "https://example.com"
+    }
+  },
+  "note": "One-letter typo accepted."
+}

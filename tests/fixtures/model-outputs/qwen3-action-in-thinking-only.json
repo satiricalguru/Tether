@@ -1,0 +1,13 @@
+{
+  "id": "qwen3-action-in-thinking-only",
+  "source": "handwritten",
+  "model": "Qwen3 8B",
+  "raw": "<think>I will click the Laptops link.\n<action name=\"click\"><arg name=\"id\">3</arg></action>\n</think>",
+  "expect": {
+    "name": "click",
+    "args": {
+      "id": 3
+    }
+  },
+  "note": "Action only inside the reasoning block; used as a last resort."
+}

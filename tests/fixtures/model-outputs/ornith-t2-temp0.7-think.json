@@ -1,0 +1,17 @@
+{
+  "id": "ornith-t2-temp0.7-think",
+  "source": "captured",
+  "model": "ornith-1.5:9b (Q4_K_M, Ollama 0.40.6)",
+  "settings": {
+    "temperature": 0.7,
+    "think": true,
+    "prompt": "protocol"
+  },
+  "raw": "<thinking>The task is to sort results by price, lowest first. There is a \"Sort by\" combobox currently set to \"Relevance\". I need to open it and select the price-ascending option.</thinking>\n\n<action name=\"click\">\n  <arg name=\"id\">6</arg>\n</action>",
+  "expect": {
+    "name": "click",
+    "args": {
+      "id": 6
+    }
+  }
+}

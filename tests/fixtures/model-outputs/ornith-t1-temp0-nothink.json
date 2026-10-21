@@ -1,0 +1,18 @@
+{
+  "id": "ornith-t1-temp0-nothink",
+  "source": "captured",
+  "model": "ornith-1.5:9b (Q4_K_M, Ollama 0.40.6)",
+  "settings": {
+    "temperature": 0,
+    "think": false,
+    "prompt": "protocol"
+  },
+  "raw": "<thinking>\nThe task is to only show items that are in stock. There is a checkbox labeled \"In stock only\" which is unchecked. I should check this checkbox to filter items to show only those in stock.\n</thinking>\n\n<action name=\"check\">\n  <arg name=\"id\">5</arg>\n  <arg name=\"state\">true</arg>\n</action>",
+  "expect": {
+    "name": "check",
+    "args": {
+      "id": 5,
+      "state": true
+    }
+  }
+}

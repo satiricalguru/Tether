@@ -1,0 +1,14 @@
+{
+  "id": "xml-missing-closers",
+  "source": "handwritten",
+  "model": "Qwen3 8B",
+  "raw": "<action name=\"type\">\n<arg name=\"id\">1\n<arg name=\"text\">usb-c cable",
+  "expect": {
+    "name": "type",
+    "args": {
+      "id": 1,
+      "text": "usb-c cable"
+    }
+  },
+  "note": "No </arg> or </action>."
+}

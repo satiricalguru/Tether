@@ -1,0 +1,13 @@
+{
+  "id": "qwen3-hermes-unclosed",
+  "source": "handwritten",
+  "model": "Qwen3 8B",
+  "raw": "<tool_call>\n{\"name\": \"scroll\", \"arguments\": {\"direction\": \"down\"}}",
+  "expect": {
+    "name": "scroll",
+    "args": {
+      "direction": "down"
+    }
+  },
+  "note": "Missing </tool_call>."
+}

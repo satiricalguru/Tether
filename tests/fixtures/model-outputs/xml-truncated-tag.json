@@ -1,0 +1,10 @@
+{
+  "id": "xml-truncated-tag",
+  "source": "handwritten",
+  "model": "Qwen3 8B",
+  "raw": "<thinking>Go to the deals page.</thinking>\n<action name=\"navi",
+  "expect": {
+    "error": "cut off inside an <action> tag"
+  },
+  "note": "Ends inside the opening tag."
+}

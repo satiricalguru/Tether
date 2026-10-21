@@ -1,0 +1,13 @@
+{
+  "id": "xml-attrs-selfclosing",
+  "source": "handwritten",
+  "model": "Llama 3.1 8B",
+  "raw": "<action name=\"click\" id=\"12\"/>",
+  "expect": {
+    "name": "click",
+    "args": {
+      "id": 12
+    }
+  },
+  "note": "Arguments as attributes."
+}

@@ -1,0 +1,14 @@
+{
+  "id": "xml-multiple-different",
+  "source": "handwritten",
+  "model": "Qwen3 8B",
+  "raw": "<action name=\"type\"><arg name=\"id\">1</arg><arg name=\"text\">mug</arg></action>\n<action name=\"click\"><arg name=\"id\">2</arg></action>",
+  "expect": {
+    "name": "type",
+    "args": {
+      "id": 1,
+      "text": "mug"
+    }
+  },
+  "note": "Two different actions; the first is taken."
+}

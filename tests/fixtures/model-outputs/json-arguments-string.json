@@ -1,0 +1,15 @@
+{
+  "id": "json-arguments-string",
+  "source": "handwritten",
+  "model": "Llama 3.1 8B",
+  "raw": "{\"name\": \"extract\", \"arguments\": \"{\\\"schema\\\": {\\\"title\\\": \\\"string\\\"}}\"}",
+  "expect": {
+    "name": "extract",
+    "args": {
+      "schema": {
+        "title": "string"
+      }
+    }
+  },
+  "note": "OpenAI-style arguments as an encoded JSON string."
+}

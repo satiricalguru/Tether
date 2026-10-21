@@ -1,0 +1,10 @@
+{
+  "id": "mistral-nemo-broken-json",
+  "source": "handwritten",
+  "model": "Mistral Nemo 12B",
+  "raw": "[TOOL_CALLS] [{\"name\": \"click\", \"arguments\": {\"id\": 4,, }}]",
+  "expect": {
+    "error": "not valid JSON"
+  },
+  "note": "Malformed JSON inside the tool marker; the error carries the JSON parser position."
+}

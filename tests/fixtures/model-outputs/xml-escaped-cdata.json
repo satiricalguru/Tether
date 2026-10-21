@@ -1,0 +1,14 @@
+{
+  "id": "xml-escaped-cdata",
+  "source": "handwritten",
+  "model": "Phi-4 14B",
+  "raw": "<action name=\"type\"><arg name=\"id\">2</arg><arg name=\"text\"><![CDATA[Tom & Jerry <3]]></arg></action>",
+  "expect": {
+    "name": "type",
+    "args": {
+      "id": 2,
+      "text": "Tom & Jerry <3"
+    }
+  },
+  "note": "CDATA value."
+}

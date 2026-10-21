@@ -1,0 +1,14 @@
+{
+  "id": "gemma3-positional",
+  "source": "handwritten",
+  "model": "Gemma 3 12B",
+  "raw": "```tool_code\nselect(6, 'Price: Low to High')\n```",
+  "expect": {
+    "name": "select",
+    "args": {
+      "id": 6,
+      "option": "Price: Low to High"
+    }
+  },
+  "note": "Positional arguments mapped by schema order."
+}

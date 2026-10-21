@@ -1,0 +1,17 @@
+{
+  "id": "ornith-t6-temp0-nothink",
+  "source": "captured",
+  "model": "ornith-1.5:9b (Q4_K_M, Ollama 0.40.6)",
+  "settings": {
+    "temperature": 0,
+    "think": false,
+    "prompt": "protocol"
+  },
+  "raw": "<thinking>\nThe user wants to buy something nice for their mother. I'm on the Example Shop homepage. I should browse the products to find something nice. Let me start by looking at the available products. I could click on \"Laptops\" or \"Phones\" categories, or I could look at the products shown. Let me first explore the products. The MacBook Air M3 at $1,099 could be a nice gift for a mother. Let me click on it to see more details.\n</thinking>\n\n<action name=\"click\">\n  <arg name=\"id\">8</arg>\n</action>",
+  "expect": {
+    "name": "click",
+    "args": {
+      "id": 8
+    }
+  }
+}

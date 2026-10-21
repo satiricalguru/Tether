@@ -1,0 +1,17 @@
+{
+  "id": "ornith-t6-temp1.1-nothink",
+  "source": "captured",
+  "model": "ornith-1.5:9b (Q4_K_M, Ollama 0.40.6)",
+  "settings": {
+    "temperature": 1.1,
+    "think": false,
+    "prompt": "protocol"
+  },
+  "raw": "<thinking>\nThe user wants me to buy something nice for their mother. Let me look at the available products. I see \"Dell XPS 13 — $899\" and \"MacBook Air M3 — $1,099\". These are electronics. To buy something, I need to find a way to add items to a cart or purchase them. Let me first explore the page by clicking on a product to see if there's a buy option. The MacBook Air M3 would be a nice gift for a mother. But first, let me understand the purchasing mechanism. Let me click on the MacBook Air product.\n</thinking>\n\n<action name=\"click\">\n  <arg name=\"id\">8</arg>\n</action>",
+  "expect": {
+    "name": "click",
+    "args": {
+      "id": 8
+    }
+  }
+}

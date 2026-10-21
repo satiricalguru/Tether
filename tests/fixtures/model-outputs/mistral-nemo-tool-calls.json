@@ -1,0 +1,13 @@
+{
+  "id": "mistral-nemo-tool-calls",
+  "source": "handwritten",
+  "model": "Mistral Nemo 12B",
+  "raw": "[TOOL_CALLS] [{\"name\": \"switch_tab\", \"arguments\": {\"index\": 1}}]",
+  "expect": {
+    "name": "switchTab",
+    "args": {
+      "index": 1
+    }
+  },
+  "note": "Mistral marker; snake_case name normalized."
+}

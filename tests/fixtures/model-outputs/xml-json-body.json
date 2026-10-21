@@ -1,0 +1,13 @@
+{
+  "id": "xml-json-body",
+  "source": "handwritten",
+  "model": "Mistral Nemo 12B",
+  "raw": "<action name=\"navigate\">{\"url\": \"https://example.com/?q=a&b=c\"}</action>",
+  "expect": {
+    "name": "navigate",
+    "args": {
+      "url": "https://example.com/?q=a&b=c"
+    }
+  },
+  "note": "JSON inside the action body."
+}
