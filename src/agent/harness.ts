@@ -108,7 +108,7 @@ function preprocess(name: string, args: Record<string, unknown>): Record<string,
 
 function finish(
   tools: ToolSpec[],
-  raw: { name: string; args: unknown; thought?: string },
+  raw: { name: string; args: unknown; thought?: string; thoughtSource?: 'output' | 'reasoning' },
   format: string,
 ): ParseResult {
   const spec = resolveTool(tools, raw.name);
@@ -135,50 +135,46 @@ function finish(
   );
   if (!v.ok) return { ok: false, error: `${spec.name}: ${v.error}` };
   const call: ToolCall = { name: spec.name, args: v.value };
-  if (raw.thought) call.thought = raw.thought;
+  if (raw.thought) {
+    call.thought = raw.thought;
+    call.thoughtSource = raw.thoughtSource ?? 'output';
+  }
   return { ok: true, call, format };
 }
 
 /** Turn one model completion into a validated call, or a specific error. */
 export function interpret(tier: ToolTier, c: Completion, tools: ToolSpec[]): ParseResult {
-  const thought = c.reasoning.trim().slice(0, 500) || undefined;
+  // Prefer what the model said out loud; fall back to its reasoning for
+  // display only (tagged, so the loop never keeps it in memory).
+  const reasoning = c.reasoning.trim().slice(0, 500);
+  const withThought = (said: string | undefined) => {
+    const visible = said?.trim().slice(0, 500);
+    if (visible) return { thought: visible, thoughtSource: 'output' as const };
+    if (reasoning) return { thought: reasoning, thoughtSource: 'reasoning' as const };
+    return {};
+  };
   if (tier === 'native' && c.toolCalls.length > 0) {
     const tc = c.toolCalls[0];
     if (tc) {
-      return finish(
-        tools,
-        {
-          name: tc.name,
-          args: tc.arguments,
-          ...(c.text.trim()
-            ? { thought: c.text.trim().slice(0, 500) }
-            : thought
-              ? { thought }
-              : {}),
-        },
-        'native',
-      );
+      return finish(tools, { name: tc.name, args: tc.arguments, ...withThought(c.text) }, 'native');
     }
   }
   if (tier === 'constrained') {
     const u = parseUnionResponse(c.text);
-    if (u.ok)
+    if (u.ok) {
       return finish(
         tools,
-        { name: u.name, args: u.args, ...(u.thought ? { thought: u.thought } : {}) },
+        { name: u.name, args: u.args, ...withThought(u.thought) },
         'constrained',
       );
+    }
   }
   // Text tier, or a model that answered in text despite tools / schema.
   const p = parseToolCall(c.text, tools);
   if (!p.ok) return p;
   return finish(
     tools,
-    {
-      name: p.call.name,
-      args: p.call.args,
-      ...(p.call.thought ? { thought: p.call.thought } : thought ? { thought } : {}),
-    },
+    { name: p.call.name, args: p.call.args, ...withThought(p.call.thought) },
     p.format,
   );
 }

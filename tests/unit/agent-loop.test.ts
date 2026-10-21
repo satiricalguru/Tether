@@ -446,3 +446,69 @@ describe('links in the observation', () => {
     expect(requests[0]?.messages[0]?.content).toContain('Never guess a URL');
   });
 });
+
+describe('agent memory', () => {
+  it('pageDigest keeps the gist without the title, markup or blank lines', async () => {
+    const { pageDigest } = await import('@/agent/loop');
+    expect(
+      pageDigest(
+        '# Granite GTX\n\n$159\n\nWaterproof boot.\n\nAvailability: **In stock**',
+        'Granite GTX — Shop',
+      ),
+    ).toBe('$159 · Waterproof boot. · Availability: In stock');
+    expect(pageDigest('word '.repeat(200), 'x', 40).length).toBeLessThanOrEqual(41);
+  });
+
+  it('remembers what each visited page said, on the step that went there', async () => {
+    const { input, requests } = setup([
+      tool('navigate', { url: 'https://shop.example/granite' }),
+      tool('navigate', { url: 'https://shop.example/' }),
+      tool('done', { summary: 'ok' }),
+    ]);
+    await runAgent(input);
+    const turn3 = requests[2]?.messages.at(-1)?.content as string;
+    expect(turn3).toMatch(
+      /Step 1: navigate\(url="https:\/\/shop\.example\/granite"\) → loaded "Granite GTX" — Granite GTX — \$159 — waterproof\./,
+    );
+    expect(turn3).toMatch(
+      /Step 2: navigate\(url="https:\/\/shop\.example\/"\) → loaded "Shop" — Boots: Ridgeline Pro \$189/,
+    );
+  });
+
+  it('keeps the model’s visible note but never its hidden reasoning', async () => {
+    const { input, requests } = setup([
+      {
+        ...tool('navigate', { url: 'https://shop.example/granite' }),
+        text: 'Granite is in stock at $159.',
+      },
+      {
+        ...tool('navigate', { url: 'https://shop.example/' }),
+        reasoning: 'HIDDEN-REASONING-MARKER',
+      },
+      tool('done', { summary: 'ok' }),
+    ]);
+    await runAgent(input);
+    const turn3 = requests[2]?.messages.at(-1)?.content as string;
+    expect(turn3).toContain('[noted: Granite is in stock at $159.]');
+    expect(JSON.stringify(requests.map((r) => r.messages))).not.toContain(
+      'HIDDEN-REASONING-MARKER',
+    );
+  });
+
+  it('tags where a thought came from', () => {
+    const fromText = interpret('native', { ...tool('back', {}), text: 'note' }, READ_ONLY_TOOLS);
+    const fromReasoning = interpret(
+      'native',
+      { ...tool('back', {}), reasoning: 'thinking' },
+      READ_ONLY_TOOLS,
+    );
+    expect(fromText).toMatchObject({
+      ok: true,
+      call: { thought: 'note', thoughtSource: 'output' },
+    });
+    expect(fromReasoning).toMatchObject({
+      ok: true,
+      call: { thought: 'thinking', thoughtSource: 'reasoning' },
+    });
+  });
+});

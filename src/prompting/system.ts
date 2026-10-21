@@ -12,6 +12,7 @@ const RULES = `Rules:
 - Do one action per reply. Look at the CONTENT to decide.
 - Use only information from the pages you open; never invent facts, prices or URLs.
 - To go to another page, use a URL listed under LINKS. Never guess a URL.
+- Pages you left are not shown again; PROGRESS keeps a short note of each. In your thought, write down any fact the task needs (a price, a status, a name) so you don't have to revisit pages.
 - When you have the answer, call done with a short summary that answers the task directly.
 - If you need the user (login, CAPTCHA, a choice only they can make), call askUser.
 - If an action didn't work, try something different instead of repeating it.
@@ -28,7 +29,7 @@ export function agentSystemPrompt(tier: ToolTier, tools: ToolSpec[]): string {
     'You are Tether’s browsing agent. You operate a web browser to complete the user’s task, one action at a time. Each turn you get the task, your progress so far, and the current page.';
   switch (tier) {
     case 'native':
-      return `${intro}\n\nCall exactly one of the provided tools each turn.\n\n${RULES}`;
+      return `${intro}\n\nCall exactly one of the provided tools each turn. Before the call, write one short line noting any facts from this page you will need later.\n\n${RULES}`;
     case 'constrained':
       return `${intro}\n\nReply with a JSON object: {"thought": short reasoning, "action": one of the tool names, "args": that tool's arguments}.\n\nTools:\n${toolList(tools)}\n\n${RULES}`;
     case 'text':

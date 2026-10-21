@@ -54,7 +54,32 @@ export interface RunInput {
   now?: () => number;
 }
 
-async function observe(ctx: AgentContext, budget: number): Promise<{ text: string; url: string }> {
+const NAVIGATING = new Set(['navigate', 'newTab', 'back', 'switchTab']);
+const DIGEST_CHARS = 240;
+
+/**
+ * The gist of a page for the progress log: its opening text with the title
+ * and blank lines removed. Earlier pages aren't shown to the model again, so
+ * this is how it remembers what it saw (e.g. a product's price and stock).
+ */
+export function pageDigest(text: string, title: string, max = DIGEST_CHARS): string {
+  const t = title.trim().toLowerCase();
+  const lines = text
+    .split('\n')
+    .map((l) => l.replace(/^#+\s*|\*\*/g, '').trim())
+    .filter((l) => l && l.toLowerCase() !== t && !t.startsWith(l.toLowerCase()));
+  const flat = lines.join(' · ').replace(/\s+/g, ' ');
+  return flat.length > max ? `${flat.slice(0, max).replace(/\s+\S*$/, '')}…` : flat;
+}
+
+interface Observed {
+  text: string;
+  url: string;
+  /** Present when the page could be read. */
+  digest?: string;
+}
+
+async function observe(ctx: AgentContext, budget: number): Promise<Observed> {
   const tabs = await ctx.tabs.list(ctx.windowId);
   const cur = tabs.find((t) => t.id === ctx.tabId);
   const tabList = tabs.map((t) => ({ title: t.title, url: t.url, current: t.id === ctx.tabId }));
@@ -63,6 +88,7 @@ async function observe(ctx: AgentContext, budget: number): Promise<{ text: strin
     return {
       text: renderObservation({ page, tabs: tabList, contentBudget: budget }),
       url: page.url,
+      digest: pageDigest(page.text, page.title),
     };
   } catch (err) {
     const url = cur?.url ?? '';
@@ -91,6 +117,7 @@ export async function runAgent(input: RunInput): Promise<RunResult> {
   });
 
   const log: string[] = [];
+  let pendingDigest = false;
   let failures = 0;
   let n = 0;
   const result = (
@@ -113,6 +140,12 @@ export async function runAgent(input: RunInput): Promise<RunResult> {
       n += 1;
       emit({ type: 'thinking', n });
       const obs = await observe(ctx, budget);
+      // The page the previous step moved to: remember its gist on that step's line.
+      if (pendingDigest && obs.digest && log.length > 0) {
+        const last = log.length - 1;
+        log[last] = `${log[last] ?? ''} — ${obs.digest}`;
+      }
+      pendingDigest = false;
       const turn = [
         { role: 'user' as const, content: agentTurnPrompt(input.task, progressLog(log), obs.text) },
       ];
@@ -194,7 +227,15 @@ export async function runAgent(input: RunInput): Promise<RunResult> {
       });
       const data =
         outcome.data === undefined ? '' : ` ${JSON.stringify(outcome.data).slice(0, 600)}`;
-      log.push(`Step ${n}: ${call.name}(${argsInline(call.args)}) → ${outcome.summary}${data}`);
+      // The model's own visible note (never hidden reasoning) is part of its memory.
+      const noted =
+        call.thought && call.thoughtSource === 'output'
+          ? ` [noted: ${call.thought.replace(/\s+/g, ' ').slice(0, 160)}]`
+          : '';
+      log.push(
+        `Step ${n}: ${call.name}(${argsInline(call.args)}) → ${outcome.summary}${data}${noted}`,
+      );
+      pendingDigest = outcome.ok && NAVIGATING.has(call.name);
 
       if (outcome.end) {
         return result(

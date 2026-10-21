@@ -47,6 +47,12 @@ export interface ToolCall {
   args: Record<string, unknown>;
   /** The model's stated reasoning for this step, if it gave one. */
   thought?: string;
+  /**
+   * Where `thought` came from: the model's visible reply ('output'), or its
+   * hidden reasoning channel ('reasoning'). Only 'output' thoughts may be
+   * kept in the agent's memory; reasoning is display-only.
+   */
+  thoughtSource?: 'output' | 'reasoning';
 }
 
 export type ParseResult =
