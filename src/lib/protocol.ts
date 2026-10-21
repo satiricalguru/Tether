@@ -11,6 +11,8 @@
  * runtime.onMessage never race to respond.
  */
 
+import type { AgentEvent, RunResult } from '@/agent/loop';
+import type { AgentRunRequest } from '@/background/agent';
 import type { ChatDone, ChatStreamEvent, ChatStreamRequest } from '@/background/chat';
 import type { Attachment } from '@/context/attachments';
 import type { PageExtract } from '@/context/extract';
@@ -56,6 +58,7 @@ export interface MessageMap {
   };
   'content:ping': { req: undefined; res: { url: string; title: string } };
   'content:extract': { req: { maxChars?: number }; res: PageExtract };
+  'content:wait-text': { req: { text: string; timeoutMs: number }; res: { found: boolean } };
   'offscreen:ping': { req: undefined; res: PingResponse };
 }
 
@@ -105,6 +108,12 @@ export interface StreamMap {
     req: { action: QuickAction; selection: string; question?: string; url: string; title: string };
     chunk: ChatStreamEvent;
     done: ChatDone & { prompt: string };
+  };
+  /** A browsing-agent run, owned by the background worker. Disconnect = stop. */
+  agent: {
+    req: AgentRunRequest;
+    chunk: AgentEvent;
+    done: RunResult;
   };
   /** One generation against a provider, with status events and metrics. */
   chat: {

@@ -16,6 +16,30 @@ interface BridgeMarker {
 
 const MARKER = '__tetherBridge';
 
+/** Resolve when `text` is visible in the page (case-insensitive), or after the timeout. */
+function waitForText(text: string, timeoutMs: number): Promise<{ found: boolean }> {
+  const needle = text.trim().toLowerCase();
+  const present = () => document.body.innerText.toLowerCase().includes(needle);
+  if (!needle || present()) return Promise.resolve({ found: !!needle });
+  return new Promise((resolve) => {
+    const observer = new MutationObserver(() => {
+      if (present()) {
+        cleanup();
+        resolve({ found: true });
+      }
+    });
+    const timer = setTimeout(() => {
+      cleanup();
+      resolve({ found: false });
+    }, timeoutMs);
+    function cleanup() {
+      observer.disconnect();
+      clearTimeout(timer);
+    }
+    observer.observe(document.body, { childList: true, subtree: true, characterData: true });
+  });
+}
+
 export default defineContentScript({
   matches: ['<all_urls>'],
   registration: 'runtime',
@@ -30,6 +54,7 @@ export default defineContentScript({
       'content:ping': () => ({ url: location.href, title: document.title }),
       'content:extract': ({ maxChars }) =>
         extractPage(document, window, maxChars === undefined ? {} : { maxChars }),
+      'content:wait-text': ({ text, timeoutMs }) => waitForText(text, timeoutMs),
     });
 
     // Only the top frame gets a bubble; frames are read by the agent in Phase 5.

@@ -1,5 +1,6 @@
 import { browser } from 'wxt/browser';
 import { defineBackground } from 'wxt/utils/define-background';
+import { createAgentStream } from '@/background/agent';
 import { createChatStream } from '@/background/chat';
 import {
   contextHandlers,
@@ -67,6 +68,10 @@ export default defineBackground({
       {
         echo: echoStream,
         chat,
+        agent: createAgentStream({
+          chat,
+          capabilities: (id, model) => registry.capabilities(id, model),
+        }),
         quick: createQuickStream({
           chat,
           capabilities: (id, model) => registry.capabilities(id, model),
