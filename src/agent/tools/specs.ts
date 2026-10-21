@@ -8,7 +8,7 @@ import type { ToolSpec } from '../types';
 export const READ_ONLY_TOOLS: ToolSpec[] = [
   {
     name: 'navigate',
-    description: 'Open a URL in the current tab.',
+    description: 'Open a URL in the current tab. To follow a link, use its URL from LINKS.',
     parameters: {
       type: 'object',
       properties: {

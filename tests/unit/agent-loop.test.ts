@@ -42,7 +42,9 @@ const tool = (name: string, args: Record<string, unknown>): Completion => ({
 const text = (t: string): Completion => ({ text: t, reasoning: '', toolCalls: [] });
 
 /** A tiny web: url → page. */
-function fakeWeb(pages: Record<string, { title: string; text: string }>) {
+function fakeWeb(
+  pages: Record<string, { title: string; text: string; links?: { text: string; url: string }[] }>,
+) {
   let current = 'https://shop.example/';
   const visits: string[] = [];
   const tabs: TabsApi = {
@@ -74,6 +76,7 @@ function fakeWeb(pages: Record<string, { title: string; text: string }>) {
       truncated: false,
       hiddenChars: 0,
       hiddenSample: '',
+      links: p.links ?? [],
     });
   };
   return { tabs, readPage, visits };
@@ -88,6 +91,7 @@ function setup(
     'https://shop.example/': {
       title: 'Shop',
       text: 'Boots: Ridgeline Pro $189, Granite GTX $159.',
+      links: [{ text: 'Granite GTX', url: 'https://shop.example/granite' }],
     },
     'https://shop.example/granite': {
       title: 'Granite GTX',
@@ -427,5 +431,18 @@ describe('extract helpers', () => {
     ).toEqual({
       text: 'card [card], ssn [ssn], key [token]',
     });
+  });
+});
+
+describe('links in the observation', () => {
+  it('lists links inside the untrusted fence and tells the model to use them', async () => {
+    const { input, requests } = setup([tool('done', { summary: 'ok' })]);
+    await runAgent(input);
+    const turn = requests[0]?.messages.at(-1)?.content as string;
+    const fenceEnd = turn.indexOf('</untrusted_page_content>');
+    const linkAt = turn.indexOf('[1] Granite GTX → https://shop.example/granite');
+    expect(linkAt).toBeGreaterThan(turn.indexOf('<untrusted_page_content'));
+    expect(linkAt).toBeLessThan(fenceEnd);
+    expect(requests[0]?.messages[0]?.content).toContain('Never guess a URL');
   });
 });

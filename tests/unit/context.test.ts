@@ -212,3 +212,30 @@ describe('fencing', () => {
     expect(composeUserContent('Plain', undefined)).toBe('Plain');
   });
 });
+
+describe('collectLinks', () => {
+  it('keeps visible http(s) links, absolutized, deduped, labelled, capped', async () => {
+    const { collectLinks } = await import('@/context/extract');
+    const div = document.createElement('div');
+    div.innerHTML = [
+      '<a href="/shop/granite.html">Granite GTX</a>',
+      '<a href="/shop/granite.html#reviews">Granite again</a>',
+      '<a href="javascript:alert(1)">evil</a>',
+      '<a href="mailto:x@y.z">mail</a>',
+      '<a href="https://other.example/a" aria-label="Other site"><img alt=""></a>',
+      '<a href="/empty"></a>',
+    ].join('');
+    expect(collectLinks(div, 'http://127.0.0.1:5000/shop/index.html')).toEqual([
+      { text: 'Granite GTX', url: 'http://127.0.0.1:5000/shop/granite.html' },
+      { text: 'Other site', url: 'https://other.example/a' },
+    ]);
+    const many = document.createElement('div');
+    many.innerHTML = Array.from({ length: 60 }, (_, i) => `<a href="/p${i}">P${i}</a>`).join('');
+    expect(collectLinks(many, 'http://x.test/')).toHaveLength(40);
+  });
+
+  it('extractPage leaves hidden links out', () => {
+    document.body.innerHTML = `<main><p>${'Visible words here. '.repeat(20)}</p><a href="/ok">Shown</a><a href="/secret" style="display:none">Hidden</a></main>`;
+    expect(extractPage(document, window).links.map((l) => l.text)).toEqual(['Shown']);
+  });
+});

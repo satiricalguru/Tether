@@ -22,17 +22,28 @@ export function renderObservation(o: ObservationInput): string {
   const head = [`URL: ${o.page.url}`, `TITLE: ${o.page.title}`, `TABS: ${tabs}`];
   if ('error' in o.page)
     return [...head, `CONTENT: (cannot read this page: ${o.page.error})`].join('\n');
-  const t = truncateToTokens(o.page.text, o.contentBudget);
+  const links = renderLinks(o.page.links);
+  // Links are what the agent navigates by; they get their share first.
+  const t = truncateToTokens(o.page.text, Math.max(200, o.contentBudget - estimateTokens(links)));
   const body = fence({
     id: 'obs',
     kind: 'page',
     title: o.page.title,
     url: o.page.url,
-    text: t.text || '(empty page)',
+    text: `${t.text || '(empty page)'}${links ? `\n\n${links}` : ''}`,
     tokens: estimateTokens(t.text),
     warnings: [],
   });
   return [...head, 'CONTENT:', body].join('\n');
+}
+
+/** "LINKS:" section: numbered, page order, labels trimmed. Inside the untrusted fence. */
+export function renderLinks(links: { text: string; url: string }[]): string {
+  if (links.length === 0) return '';
+  return [
+    'LINKS (to follow one, navigate to its URL):',
+    ...links.map((l, i) => `[${i + 1}] ${l.text.slice(0, 60)} → ${l.url}`),
+  ].join('\n');
 }
 
 /** "Step 3: navigate(url=…) → loaded "Results"" lines; only the last `keep`, older ones summarized. */

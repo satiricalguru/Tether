@@ -11,6 +11,7 @@ import { textProtocolInstructions } from './tools-fallback';
 const RULES = `Rules:
 - Do one action per reply. Look at the CONTENT to decide.
 - Use only information from the pages you open; never invent facts, prices or URLs.
+- To go to another page, use a URL listed under LINKS. Never guess a URL.
 - When you have the answer, call done with a short summary that answers the task directly.
 - If you need the user (login, CAPTCHA, a choice only they can make), call askUser.
 - If an action didn't work, try something different instead of repeating it.

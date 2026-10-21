@@ -26,6 +26,49 @@ export interface PageExtract {
   hiddenChars: number;
   /** Hidden text, capped, for the injection scanner (never sent to the model). */
   hiddenSample: string;
+  /** Visible links (absolute http(s) URLs), in page order, for the agent. */
+  links: PageLink[];
+}
+
+export interface PageLink {
+  text: string;
+  url: string;
+}
+
+export const MAX_LINKS = 40;
+
+/**
+ * Links a person can see, from the visibility-filtered clone: absolute
+ * http(s) only, deduplicated by URL, labelled by their text (or aria-label /
+ * title), capped. The agent reads these instead of guessing URLs.
+ */
+export function collectLinks(root: Element, base: string, max = MAX_LINKS): PageLink[] {
+  const out: PageLink[] = [];
+  const seen = new Set<string>();
+  for (const a of root.querySelectorAll('a[href]')) {
+    let url: URL;
+    try {
+      url = new URL(a.getAttribute('href') ?? '', base);
+    } catch {
+      continue;
+    }
+    if (url.protocol !== 'http:' && url.protocol !== 'https:') continue;
+    url.hash = '';
+    const key = url.href;
+    // First non-empty of: visible text, aria-label, title.
+    const label = (
+      [
+        a.textContent.replace(/\s+/g, ' ').trim(),
+        a.getAttribute('aria-label'),
+        a.getAttribute('title'),
+      ].find((t) => t?.trim()) ?? ''
+    ).slice(0, 80);
+    if (!label || seen.has(key)) continue;
+    seen.add(key);
+    out.push({ text: label, url: key });
+    if (out.length >= max) break;
+  }
+  return out;
 }
 
 export interface ExtractOptions {
@@ -342,6 +385,7 @@ export function extractPage(doc: Document, win: Window, opts: ExtractOptions = {
   };
   const body = docBody ? cloneVisible(docBody, win, scratch, st) : null;
   if (body) scratch.body.replaceWith(body);
+  const links = collectLinks(scratch.body, docLocation?.href ?? doc.baseURI);
 
   let text = '';
   let method: ExtractMethod = 'body';
@@ -384,6 +428,7 @@ export function extractPage(doc: Document, win: Window, opts: ExtractOptions = {
     truncated,
     hiddenChars: st.hiddenChars,
     hiddenSample: st.hidden.join('\n').slice(0, HIDDEN_SAMPLE_CAP),
+    links,
   };
   const lang = doc.documentElement.getAttribute('lang');
   if (lang) out.lang = lang;
