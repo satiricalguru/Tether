@@ -13,8 +13,31 @@ const OUT = resolve(import.meta.dirname, '../../.output/chrome-mv3');
 
 const LOCAL = /^https?:\/\/(127\.0\.0\.1|localhost|\[::1\])(:\d*)?(\/|$)/;
 
-/** Non-local URL strings that appear in the bundle but are never requested. */
-const NEVER_FETCHED: { pattern: RegExp; reason: string }[] = [
+/**
+ * Non-local URL strings that appear in the bundle but are never requested.
+ * `file` scopes an entry to specific output files, so the same string
+ * appearing anywhere else still fails.
+ */
+const PDFJS = /^(chunks\/pdf-[\w-]+\.js|assets\/pdf\.worker\.min-[\w-]+\.mjs)$/;
+
+const NEVER_FETCHED: { pattern: RegExp; reason: string; file?: RegExp }[] = [
+  {
+    pattern:
+      /^(http:\/\/www\.apache\.org\/licenses\/LICENSE-2\.0|https:\/\/github\.com\/zloirock\/core-js(\/blob\/v[\d.]+\/LICENSE)?)$/,
+    reason: 'pdf.js and its core-js polyfills: license links in comments',
+    file: PDFJS,
+  },
+  {
+    pattern: /^(https:\/\/(a|x|a\/c%20d\?a=1&c=3|a@b|тест|a#б|foo\.bar)|http:\/\/example\.com)$/,
+    reason:
+      'core-js feature probes: `new URL(...)` parsed locally to test URL support, never fetched',
+    file: PDFJS,
+  },
+  {
+    pattern: /^http:\/\/(www\.xfa\.org\/schema\/|ns\.adobe\.com\/(xdp|xfdf|xmpmeta)\/)/,
+    reason: 'XFA / XMP namespace URIs pdf.js compares against document metadata',
+    file: PDFJS,
+  },
   {
     pattern: /^http:\/\/www\.w3\.org\//,
     reason: 'XML/SVG/MathML namespace URIs used by React DOM',
@@ -66,7 +89,9 @@ describe('built bundle', () => {
     for (const file of textFiles) {
       for (const url of readFileSync(file, 'utf8').match(URL_RE) ?? []) {
         if (LOCAL.test(url)) continue;
-        if (NEVER_FETCHED.some((n) => n.pattern.test(url))) continue;
+        const rel = relative(OUT, file);
+        if (NEVER_FETCHED.some((n) => n.pattern.test(url) && (!n.file || n.file.test(rel))))
+          continue;
         offenders.push(`${relative(OUT, file)}: ${url}`);
       }
     }
