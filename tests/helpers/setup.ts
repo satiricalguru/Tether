@@ -7,6 +7,8 @@ let ports: FakePorts | undefined;
 
 beforeEach(() => {
   fakeBrowser.reset();
+  // Not implemented by the fake; extension code reads it for language defaults.
+  Object.assign(fakeBrowser.i18n, { getUILanguage: () => 'en-US' });
   ports = installFakePorts();
 });
 
