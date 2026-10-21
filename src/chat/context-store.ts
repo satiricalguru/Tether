@@ -90,14 +90,12 @@ export async function loadPageChip(kind: 'page' | 'selection', tabId?: number): 
   const tab =
     tabId === undefined
       ? await activeTab()
-      : await browser.tabs
-          .get(tabId)
-          .then((t) => ({
-            id: tabId,
-            url: t.url ?? '',
-            title: t.title ?? '',
-            windowId: t.windowId,
-          }));
+      : await browser.tabs.get(tabId).then((t) => ({
+          id: tabId,
+          url: t.url ?? '',
+          title: t.title ?? '',
+          windowId: t.windowId,
+        }));
   if (!tab) {
     set(kind, errorState(kind, new Error('No active tab')));
     return;
