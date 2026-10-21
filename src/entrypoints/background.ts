@@ -1,12 +1,22 @@
 import { browser } from 'wxt/browser';
 import { defineBackground } from 'wxt/utils/define-background';
 import { createChatStream } from '@/background/chat';
+import {
+  contextHandlers,
+  createQuickStream,
+  openPanelNow,
+  pendingFromMenu,
+  putPending,
+  setupContextMenus,
+  syncRegistration,
+} from '@/background/context';
 import { echoStream } from '@/background/echo';
 import { createBackgroundRegistry, providerHandlers, runDiscovery } from '@/background/providers';
 import { KEEPALIVE_ALARM, onKeepaliveAlarm, setKeepalive } from '@/lib/keepalive';
 import { createLogger } from '@/lib/logger';
 import { registerHandlers, sendToTab } from '@/lib/messaging';
 import { registerStreamHandlers } from '@/lib/ports';
+import { watchSettings } from '@/lib/settings';
 import { configurePanelBehavior } from '@/platform/sidePanel';
 
 const log = createLogger('bg');
@@ -29,6 +39,7 @@ export default defineBackground({
 
     registerHandlers({
       ...providerHandlers(registry),
+      ...contextHandlers(),
       'bg:ping': () => ({
         pong: true,
         version: browser.runtime.getManifest().version,
@@ -48,13 +59,17 @@ export default defineBackground({
       },
     });
 
+    const chat = createChatStream({
+      getProvider: (id) => registry.provider(id),
+      contextLength: async (id, model) => (await registry.capabilities(id, model)).contextLength,
+    });
     registerStreamHandlers(
       {
         echo: echoStream,
-        chat: createChatStream({
-          getProvider: (id) => registry.provider(id),
-          contextLength: async (id, model) =>
-            (await registry.capabilities(id, model)).contextLength,
+        chat,
+        quick: createQuickStream({
+          chat,
+          capabilities: (id, model) => registry.capabilities(id, model),
         }),
       },
       {
@@ -70,7 +85,34 @@ export default defineBackground({
       if (alarm.name === KEEPALIVE_ALARM) void onKeepaliveAlarm();
     });
 
+    browser.contextMenus.onClicked.addListener((info, tab) => {
+      // Open first: the user gesture doesn't survive an await.
+      void openPanelNow(tab?.windowId);
+      void pendingFromMenu(info, tab).then((p) => (p ? putPending(p) : undefined));
+    });
+
+    // Keep the bubble's registration in step with grants and the setting.
+    const resync = () => {
+      syncRegistration().catch((err: unknown) => {
+        log.warn('content script registration failed', err);
+      });
+    };
+    browser.permissions.onAdded.addListener(resync);
+    browser.permissions.onRemoved.addListener(resync);
+    let bubbleSetting: boolean | undefined;
+    watchSettings((s) => {
+      if (s.page.bubble !== bubbleSetting) {
+        bubbleSetting = s.page.bubble;
+        resync();
+      }
+    });
+    browser.runtime.onStartup.addListener(resync);
+
     browser.runtime.onInstalled.addListener(({ reason }) => {
+      void setupContextMenus().catch((err: unknown) => {
+        log.warn('context menu setup failed', err);
+      });
+      resync();
       log.info('installed', reason);
       // A worker restarted mid-stream may have left the alarm running.
       void setKeepalive(false);
