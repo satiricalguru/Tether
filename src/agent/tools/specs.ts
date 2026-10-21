@@ -43,7 +43,7 @@ export const READ_ONLY_TOOLS: ToolSpec[] = [
   {
     name: 'waitFor',
     description:
-      'Wait for content that is still loading: give a short exact phrase you expect to appear (e.g. "Ranger report"), or "load". Don’t wait for text you’ve already seen.',
+      'Wait for content that is still loading: give a short exact phrase you expect to appear (e.g. "results found"), or "load". Don’t wait for text you’ve already seen.',
     parameters: {
       type: 'object',
       properties: {
