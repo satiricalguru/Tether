@@ -12,11 +12,11 @@ telemetry.
 Works with Ollama, LM Studio, llama.cpp server and any OpenAI-compatible
 local server (vLLM, LocalAI, Jan, KoboldCpp, TabbyAPI, ...).
 
-> **Status: Phase 3 (page context).** Chat about the page you're on, your
-> selection, every open tab or a PDF. Highlight text anywhere Tether may read
-> to explain, summarize, translate or improve it in place, or use the
-> right-click menu. Page text is always treated as untrusted data. The
-> computer-use agent comes next. See [Roadmap](#roadmap).
+> **Status: Phase 4 (tool harness).** Chat, page context and highlight-to-ask
+> work, and an **Agent** mode browses for you on read-only tasks: open pages,
+> follow links, wait for content, extract data, and answer. It works with
+> local models whatever their tool-calling ability. Clicking and typing on
+> pages (computer use) comes next. See [Roadmap](#roadmap).
 
 ## Getting started
 
@@ -67,6 +67,50 @@ local server (vLLM, LocalAI, Jan, KoboldCpp, TabbyAPI, ...).
 - **Access is per site.** Tether can read a page right after you open it
   there. To read a site at any time, or show the bubble on it, allow that
   site (or all sites) when asked, or under _Settings → Pages_.
+
+### Agent mode (read-only)
+
+Turn on **Agent** in the composer and describe a task, such as _"which boot on
+this site is out of stock?"_. The agent works one step at a time on your
+current tab: navigate, follow links, switch tabs, wait for content that's
+still loading, extract structured data, ask you when it's stuck, and finish
+with an answer. Each step appears live in the chat and is recorded in a local
+trace.
+
+- **Works with any local model.** Tether picks how to talk to it: _native_
+  tool calls if the model supports them, _constrained_ JSON (a grammar or JSON
+  schema) if the server supports that, or a _text_ protocol with a tolerant
+  parser otherwise. A model that rejects tools mid-run is switched down a
+  tier automatically.
+- **Validated before anything runs.** Every action is checked against its
+  schema. A malformed reply gets one repair attempt, showing the model its
+  own mistake, and doesn't cost a step.
+- **Safe by default.** Banking, payment, government and webmail sites are
+  off-limits unless you allow them. Page text is untrusted data, and hidden
+  text never reaches the model. The run stops with **Esc** or the stop
+  button.
+- **Small-model friendly.** Each step sends only the task, a compact note of
+  what each earlier page said, and the current page with its links. The
+  model's hidden reasoning is never fed back.
+
+#### Baseline (`pnpm eval`)
+
+Six read-only tasks on local fixture sites (price lookup, an out-of-stock
+check across four product pages, cross-page navigation, content that loads
+late, listing every product, and a page carrying prompt injections), run in
+each tool-calling tier:
+
+| Model                                  | Native tools | Constrained JSON | Text protocol |
+| -------------------------------------- | ------------ | ---------------- | ------------- |
+| ornith-1.5:9b (Q4_K_M), Apple M2 16 GB | 6/6          | 6/6              | 6/6           |
+
+Median about 20 s per task; the multi-page stock check takes about 1 minute
+(4 minutes in the text tier). Earlier runs showed what the harness needed:
+without the page's links the agent guessed URLs (native tier 4/6), and
+without notes on visited pages it re-visited them (5/6). These are small
+tasks the harness was tuned against, and one model, so treat them as a
+regression baseline, not a benchmark. Run them on your own model with
+`TETHER_EVAL_MODEL=<model> pnpm eval`.
 
 Setup, the CORS fix for every OS, and troubleshooting for each backend are in
 [docs/providers.md](docs/providers.md).
@@ -123,6 +167,7 @@ pnpm build
 pnpm test:bundle   # zero-egress scan of the built bundle (after build)
 pnpm e2e           # builds, then Playwright with the unpacked extension loaded
 pnpm e2e:real      # opt-in: same, against your local Ollama (see tests/e2e/real-ollama.spec.ts)
+pnpm eval          # agent tasks × tool tiers against a real local model (slow)
 pnpm check         # lint + typecheck + test + build + test:bundle
 ```
 
@@ -155,7 +200,8 @@ src/
   providers/     backend adapters, stream parsers, registry, setup doctor
   context/       page extraction, injection scanner, token budget, PDFs
   content/       highlight bubble (runs in pages)
-  prompting/     quick-action templates
+  agent/         tool harness, agent loop, tools, url guard, traces
+  prompting/     prompts, tolerant tool-call parser, grammars
   platform/      shims for browser-specific APIs (sidePanel, offscreen)
   components/ui/ vendored shadcn-style primitives
   hooks/         React hooks
@@ -193,7 +239,7 @@ DECISIONS.md     assumptions and architecture decisions
 | 1     | Provider adapters, discovery, Setup Doctor (CORS), stream parser | ✅     |
 | 2     | Chat: streaming markdown, model switcher, metrics, history       | ✅     |
 | 3     | Page context, highlight-to-ask, context menus, PDFs              | ✅     |
-| 4     | Three-tier tool calling, fallback parser, grammars               | —      |
+| 4     | Three-tier tool calling, fallback parser, grammars               | ✅     |
 | 5     | Computer use: observation, actions, guard rails, traces          | —      |
 | 6     | Local RAG, inline compose, prompt library                        | —      |
 | 7     | Vision tier, Firefox, packaging                                  | —      |
