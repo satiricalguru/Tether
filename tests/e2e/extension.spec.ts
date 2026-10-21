@@ -39,11 +39,11 @@ test.describe('options', () => {
   test('renders and persists the theme across reloads', async ({ page, extensionUrl }) => {
     await page.goto(extensionUrl('options.html'));
     await expect(page.getByRole('heading', { name: 'Tether settings' })).toBeVisible();
-    await page.getByLabel('Dark').check();
+    await page.getByLabel('Dark', { exact: true }).check();
     await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
 
     await page.reload();
-    await expect(page.getByLabel('Dark')).toBeChecked();
+    await expect(page.getByLabel('Dark', { exact: true })).toBeChecked();
     await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
   });
 
@@ -55,7 +55,7 @@ test.describe('options', () => {
     await page.goto(extensionUrl('sidepanel.html'));
     const options = await context.newPage();
     await options.goto(extensionUrl('options.html'));
-    await options.getByLabel('Light').check();
+    await options.getByLabel('Light', { exact: true }).check();
     await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
   });
 });
