@@ -6,7 +6,7 @@ export default defineConfig({
   testMatch: '*.eval.ts',
   fullyParallel: false,
   workers: 1,
-  timeout: 300_000,
+  timeout: 330_000,
   reporter: 'list',
   globalSetup: './tests/e2e/global-setup.ts',
 });

@@ -1,5 +1,5 @@
 /// <reference types="chrome" />
-import { writeFileSync } from 'node:fs';
+import { appendFileSync, existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { expect, test } from '../e2e/fixtures';
 import { configureProviders } from '../e2e/helpers';
@@ -31,7 +31,28 @@ interface Row {
   repaired: number;
   invalid: number;
 }
-const rows: Row[] = [];
+/**
+ * Rows are appended to a file as each run finishes. Playwright restarts the
+ * worker after a timeout, which would wipe anything kept in memory.
+ */
+const NAME = MODEL.replace(/[^\w.-]+/g, '_');
+const ROWS_FILE = resolve(import.meta.dirname, 'results', `${NAME}.jsonl`);
+const readRows = (): Row[] =>
+  existsSync(ROWS_FILE)
+    ? readFileSync(ROWS_FILE, 'utf8')
+        .split('\n')
+        .filter(Boolean)
+        .map((l) => JSON.parse(l) as Row)
+    : [];
+const addRow = (r: Row) => {
+  appendFileSync(ROWS_FILE, `${JSON.stringify(r)}\n`);
+};
+// Playwright loads this file once in the main process (to collect tests,
+// TEST_WORKER_INDEX unset) and again in each worker. Start a fresh results
+// file only in the former; TETHER_EVAL_FRESH=0 appends to a previous run.
+if (process.env.TETHER_EVAL_FRESH !== '0' && process.env.TEST_WORKER_INDEX === undefined) {
+  writeFileSync(ROWS_FILE, '');
+}
 
 let ollama: TempOllama | undefined;
 test.beforeAll(async () => {
@@ -39,6 +60,7 @@ test.beforeAll(async () => {
 });
 test.afterAll(async () => {
   await ollama?.stop();
+  const rows = latestRows();
   const tasks = [...new Set(rows.map((r) => r.task))];
   const lines = [
     `Model: ${MODEL}`,
@@ -70,6 +92,13 @@ test.afterAll(async () => {
   );
   console.log(`\n${md}\n`);
 });
+
+/** The last result per tier/task (reruns of one task replace earlier rows). */
+function latestRows(): Row[] {
+  const byKey = new Map<string, Row>();
+  for (const r of readRows()) byKey.set(`${r.tier}/${r.task}`, r);
+  return [...byKey.values()];
+}
 
 for (const tier of TIERS) {
   for (const t of TASKS.filter((x) => !ONLY || ONLY.includes(x.id))) {
@@ -105,7 +134,8 @@ for (const tier of TIERS) {
       await page.getByRole('button', { name: 'Send', exact: true }).click();
       const run = page.getByTestId('agent-run');
       await expect(run).toBeVisible();
-      await expect(run).not.toHaveAttribute('data-status', 'running', { timeout: 280_000 });
+      // The agent's own 4-minute budget ends the run before the test timeout.
+      await expect(run).not.toHaveAttribute('data-status', 'running', { timeout: 290_000 });
 
       const seconds = Math.round((Date.now() - started) / 1000);
       const record = await page.evaluate(async () => {
@@ -144,7 +174,7 @@ for (const tier of TIERS) {
         visited: steps.flatMap((s) => (s.args?.url ? [s.args.url] : [])),
       };
       const why = t.check(outcome);
-      rows.push({
+      addRow({
         tier,
         task: t.id,
         pass: why === null,
