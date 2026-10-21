@@ -188,6 +188,8 @@ test.describe('page context', () => {
       await expect(page.getByTestId('context-budget')).toContainText('trimmed to fit');
       await send(page, 'Summarize');
       await expect(page.getByTestId('msg-attachment')).toContainText('(trimmed)');
+      // The chip appears before the request reaches the model; wait for the reply.
+      await expect(page.getByTestId('msg-assistant')).toHaveAttribute('data-status', 'done');
       const user = chatBodies(mock)[0]?.messages.at(-1)?.content ?? '';
       expect(user).toMatch(/\[truncated: kept about \d+ of \d+ tokens\]/);
     } finally {
