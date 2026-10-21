@@ -1,4 +1,6 @@
 import type { ChatStreamRequest } from '@/background/chat';
+import { composeUserContent, UNTRUSTED_RULE } from '@/context/attachments';
+import { estimateTokens as estimateText, MESSAGE_OVERHEAD } from '@/context/tokens';
 import type { ConversationRecord, MessageRecord } from '@/lib/db';
 import type { GenerationSettings, ReasoningMode } from '@/lib/settings';
 import type { ChatMessage } from '@/providers/types';
@@ -10,14 +12,18 @@ import type { ChatMessage } from '@/providers/types';
  *  - reasoning is never sent (it lives in its own field; small context
  *    windows can't afford it and it confuses the next turn);
  *  - errored and empty replies are skipped;
- *  - when over budget, the oldest turns go first; the system prompt and
- *    the latest user message always stay.
+ *  - page/PDF attachments are fenced as untrusted data, and the system
+ *    prompt says so whenever any are present;
+ *  - when over budget, older turns lose their attachments first, then the
+ *    oldest turns go; the system prompt and the latest user message stay.
  */
 
-/** Rough token estimate until Phase 3's counter: ~3.5 chars/token, plus framing. */
+/** Tokens for one message, including chat-template framing. */
 export function estimateTokens(text: string): number {
-  return Math.ceil(text.length / 3.5) + 4;
+  return estimateText(text) + MESSAGE_OVERHEAD;
 }
+
+export const OMITTED_CONTEXT = '[Earlier page content omitted to fit the context window.]';
 
 export interface BuildInput {
   conversation: ConversationRecord;
@@ -50,12 +56,17 @@ export function effectiveGeneration(conv: ConversationRecord, defaults: Generati
 
 export function buildRequest(input: BuildInput): BuiltRequest {
   const gen = effectiveGeneration(input.conversation, input.defaults);
-  const system = (input.conversation.settings.systemPrompt ?? input.systemPrompt).trim();
-
-  const turns: ChatMessage[] = input.thread
+  const kept = input.thread
     .filter((m) => (m.role === 'user' || m.role === 'assistant') && m.status !== 'error')
-    .filter((m) => m.content.trim().length > 0)
-    .map((m) => ({ role: m.role as 'user' | 'assistant', content: m.content }));
+    .filter((m) => m.content.trim().length > 0 || (m.attachments?.length ?? 0) > 0);
+  const hasAttachments = kept.some((m) => m.attachments?.length);
+  const baseSystem = (input.conversation.settings.systemPrompt ?? input.systemPrompt).trim();
+  const system = hasAttachments ? `${baseSystem}\n\n${UNTRUSTED_RULE}`.trim() : baseSystem;
+
+  const turns: ChatMessage[] = kept.map((m) => ({
+    role: m.role as 'user' | 'assistant',
+    content: m.role === 'user' ? composeUserContent(m.content, m.attachments) : m.content,
+  }));
 
   // Window we can fill: requested num_ctx (clamped to the model) minus the reply reserve.
   const window = gen.numCtx > 0 ? Math.min(gen.numCtx, input.contextLength) : input.contextLength;
@@ -64,7 +75,16 @@ export function buildRequest(input: BuildInput): BuiltRequest {
     (system ? estimateTokens(system) : 0) +
     turns.reduce((n, t) => n + estimateTokens(t.content as string), 0);
   let dropped = 0;
-  // Keep at least the final user turn; drop from the front in pairs-ish order.
+  // First give up page content attached to earlier questions (oldest first)…
+  for (let i = 0; i < turns.length - 1 && used > budget; i++) {
+    const src = kept[i];
+    const turn = turns[i];
+    if (!src?.attachments?.length || !turn) continue;
+    const slim = `${OMITTED_CONTEXT}\n\n${src.content}`;
+    used += estimateTokens(slim) - estimateTokens(turn.content as string);
+    turn.content = slim;
+  }
+  // …then whole turns. Keep at least the final user turn.
   while (used > budget && turns.length > 1) {
     const first = turns.shift();
     used -= estimateTokens((first?.content as string | undefined) ?? '');

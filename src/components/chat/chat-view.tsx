@@ -9,12 +9,16 @@ import {
 import { branchConversation, selectBranch, updateConversation } from '@/chat/store';
 import { siblingInfo } from '@/chat/tree';
 import { useChatUi } from '@/chat/ui-store';
+import { draftAttachments, useContextDraft } from '@/chat/context-store';
 import { ModelPicker } from '@/components/models/model-picker';
+import { isPdfUrl } from '@/context/pdf-url';
+import { useContextBudget } from '@/hooks/use-context-budget';
 import { useActiveTabUrl } from '@/hooks/use-active-tab';
 import { useConversation } from '@/hooks/use-conversation';
 import { useSettings } from '@/hooks/use-settings';
 import { matchSiteRule } from '@/lib/settings';
 import { Composer } from './composer';
+import { ContextBar } from './context-bar';
 import { ConversationSettingsButton } from './conversation-settings';
 import { MessageItem } from './message-item';
 
@@ -45,6 +49,20 @@ export function ChatView() {
   const busyIds = messages.filter((m) => live[m.id]).map((m) => m.id);
   const busy = busyIds.length > 0;
   const rule = !conversation && settings ? matchSiteRule(settings.siteRules, tabUrl) : undefined;
+  const chips = useContextDraft((s) => s.chips);
+  const clearDraft = useContextDraft((s) => s.clear);
+  const drafted = draftAttachments(chips);
+  const target = conversation
+    ? { instanceId: conversation.instanceId, model: conversation.model }
+    : (rule ?? settings?.selection);
+  const budget = useContextBudget({
+    instanceId: target?.instanceId,
+    model: target?.model,
+    settings,
+    thread,
+    attachments: drafted,
+    question: '',
+  });
 
   const stop = () => {
     for (const id of busyIds) stopReply(id);
@@ -72,9 +90,15 @@ export function ChatView() {
 
   const send = async (text: string) => {
     pinnedToBottom.current = true;
+    // Attachments as budgeted (trimmed to fit), captured before the draft resets.
+    const attachments = budget?.fitted ?? drafted;
+    const question =
+      text ||
+      (attachments.some((a) => a.kind === 'selection') ? 'Explain this.' : 'Summarize this.');
+    clearDraft();
     const conv = conversation ?? (await startConversation(tabUrl));
     if (!conversation) openConversation(conv.id);
-    await sendUserMessage(conv, text);
+    await sendUserMessage(conv, question, attachments);
   };
 
   if (!settings) return null;
@@ -156,6 +180,8 @@ export function ChatView() {
       </div>
       <div className="border-t border-border p-2">
         <Composer
+          above={<ContextBar budget={budget} pdfAvailable={isPdfUrl(tabUrl)} />}
+          allowEmpty={drafted.length > 0}
           busy={busy}
           disabled={!conversation && !settings.selection.model && !rule}
           enterToSend={settings.chat.enterToSend}

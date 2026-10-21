@@ -10,6 +10,10 @@ export interface ComposerProps {
   onStop: () => void;
   /** Left side of the toolbar (model picker, chat settings). */
   toolbar: ReactNode;
+  /** Rendered above the text box (context chips). */
+  above?: ReactNode;
+  /** Allow sending with no text (context attached: a default question is used). */
+  allowEmpty?: boolean;
   placeholder?: string;
 }
 
@@ -20,6 +24,8 @@ export function Composer({
   onSend,
   onStop,
   toolbar,
+  above,
+  allowEmpty = false,
   placeholder,
 }: ComposerProps) {
   const [text, setText] = useState('');
@@ -35,7 +41,7 @@ export function Composer({
 
   const send = () => {
     const t = text.trim();
-    if (!t || busy || disabled) return;
+    if ((!t && !allowEmpty) || busy || disabled) return;
     onSend(t);
     setText('');
   };
@@ -48,6 +54,7 @@ export function Composer({
         send();
       }}
     >
+      {above}
       <textarea
         ref={ref}
         aria-label="Message"
@@ -89,7 +96,7 @@ export function Composer({
             size="icon"
             className="ml-auto size-7 rounded-full"
             aria-label="Send"
-            disabled={disabled || !text.trim()}
+            disabled={disabled || (!text.trim() && !allowEmpty)}
           >
             <ArrowUp />
           </Button>

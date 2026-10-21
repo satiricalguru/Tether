@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button';
 import { StatusDot } from '@/components/ui/status-dot';
 import { useBackgroundStatus } from '@/hooks/use-background-status';
 import { useConversation } from '@/hooks/use-conversation';
+import { usePendingActions } from '@/hooks/use-pending-actions';
 import { useProviderStatus } from '@/hooks/use-providers';
 import { useSettings } from '@/hooks/use-settings';
 import { useApplyTheme } from '@/hooks/use-theme';
@@ -97,6 +98,7 @@ function Panel() {
   const providers = useProviderStatus();
   const view = useChatUi((s) => s.view);
   const [doctorOpen, setDoctorOpen] = useState(false);
+  usePendingActions();
   const anyHealthy = providers.data?.some((p) => p.health?.ok) ?? false;
   const showDoctor = doctorOpen || (!providers.isPending && !anyHealthy);
 

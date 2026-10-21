@@ -3,6 +3,7 @@ import { isAbortError } from '@/lib/errors';
 import { sendMessage } from '@/lib/messaging';
 import { openStream, type StreamHandle } from '@/lib/ports';
 import { getSettings, matchSiteRule } from '@/lib/settings';
+import type { Attachment } from '@/context/attachments';
 import type { ConversationRecord, MessageRecord } from '@/lib/db';
 import { buildRequest } from './request';
 import { appendMessage, conversationMessages, createConversation, updateMessage } from './store';
@@ -135,9 +136,17 @@ export async function generateReply(
   }
 }
 
-/** Append a user message under the visible leaf and answer it. */
-export async function sendUserMessage(conv: ConversationRecord, text: string): Promise<void> {
-  const user = await appendMessage(conv.id, conv.activeLeafId, { role: 'user', content: text });
+/** Append a user message (with any attached context) under the visible leaf and answer it. */
+export async function sendUserMessage(
+  conv: ConversationRecord,
+  text: string,
+  attachments: Attachment[] = [],
+): Promise<void> {
+  const user = await appendMessage(conv.id, conv.activeLeafId, {
+    role: 'user',
+    content: text,
+    ...(attachments.length ? { attachments } : {}),
+  });
   await generateReply(conv, user);
 }
 
@@ -156,6 +165,11 @@ export async function editAndResend(
   user: MessageRecord,
   text: string,
 ): Promise<void> {
-  const edited = await appendMessage(conv.id, user.parentId, { role: 'user', content: text });
+  // The edit keeps the context the original question was asked with.
+  const edited = await appendMessage(conv.id, user.parentId, {
+    role: 'user',
+    content: text,
+    ...(user.attachments?.length ? { attachments: user.attachments } : {}),
+  });
   await generateReply(conv, edited);
 }

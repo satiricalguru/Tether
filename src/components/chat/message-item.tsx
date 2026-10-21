@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/cn';
 import type { MessageRecord } from '@/lib/db';
 import type { SiblingInfo } from '@/chat/tree';
+import { AttachmentChips } from './attachment-chips';
 import { MetricsFooter } from './metrics-footer';
 
 const STATUS_TEXT: Record<ChatStatus, string> = {
@@ -131,6 +132,7 @@ export function MessageItem({
   if (m.role === 'user') {
     return (
       <div className="group flex flex-col items-end gap-1" data-testid="msg-user" data-id={m.id}>
+        {m.attachments?.length ? <AttachmentChips attachments={m.attachments} /> : null}
         {editing ? (
           <form
             className="w-full rounded-lg border border-border bg-surface p-2"
@@ -176,9 +178,11 @@ export function MessageItem({
             </div>
           </form>
         ) : (
-          <div className="max-w-[90%] rounded-2xl rounded-br-sm bg-surface-2 px-3 py-2 text-sm whitespace-pre-wrap">
-            {m.content}
-          </div>
+          m.content && (
+            <div className="max-w-[90%] rounded-2xl rounded-br-sm bg-surface-2 px-3 py-2 text-sm whitespace-pre-wrap">
+              {m.content}
+            </div>
+          )
         )}
         {!editing && (
           <div className="flex items-center gap-0.5 opacity-60 group-hover:opacity-100 focus-within:opacity-100">

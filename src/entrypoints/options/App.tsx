@@ -3,6 +3,7 @@ import { AppProviders } from '@/components/app-providers';
 import { ProvidersSection } from '@/components/providers/providers-section';
 import { ChatSection } from '@/components/settings/chat-section';
 import { DataSection } from '@/components/settings/data-section';
+import { PageSection } from '@/components/settings/page-section';
 import { ShortcutsSection } from '@/components/settings/shortcuts-section';
 import { SiteRulesSection } from '@/components/settings/site-rules-section';
 import { Card, CardTitle } from '@/components/ui/card';
@@ -19,6 +20,7 @@ const THEMES: { value: Theme; label: string }[] = [
 const SECTIONS: [string, string][] = [
   ['models', 'Models'],
   ['chat', 'Chat'],
+  ['pages', 'Pages'],
   ['sites', 'Sites'],
   ['shortcuts', 'Shortcuts'],
   ['data', 'Data'],
@@ -63,6 +65,9 @@ function Options() {
       </Section>
       <Section id="chat" title="Chat">
         <ChatSection />
+      </Section>
+      <Section id="pages" title="Pages">
+        <PageSection />
       </Section>
       <Section id="sites" title="Sites">
         <SiteRulesSection />
