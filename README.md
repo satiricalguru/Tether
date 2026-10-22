@@ -12,12 +12,14 @@ telemetry.
 Works with Ollama, LM Studio, llama.cpp server and any OpenAI-compatible
 local server (vLLM, LocalAI, Jan, KoboldCpp, TabbyAPI, ...).
 
-> **Status: Phase 5 (computer use).** Chat, page context and highlight-to-ask
-> work, and **Agent** mode operates pages for you: it clicks, types, picks
-> options, scrolls and fills forms, and asks you before anything
-> irreversible. It works with local models whatever their tool-calling
-> ability. Local RAG, inline compose and a prompt library come next. See
-> [Roadmap](#roadmap).
+> **Status: Phase 6 (RAG, inline compose, prompt library).** Chat, page
+> context, highlight-to-ask and the computer-use agent work, and so do these:
+>
+> - Long pages are answered from their most relevant parts.
+> - **Cmd/Ctrl+K** in any text field rewrites or drafts text.
+> - **/commands** run prompts from your own library.
+>
+> Vision, Firefox and packaging come next. See [Roadmap](#roadmap).
 
 ## Getting started
 
@@ -65,9 +67,56 @@ local server (vLLM, LocalAI, Jan, KoboldCpp, TabbyAPI, ...).
   side panel_ carries it into a chat.
 - **Right-click**: _Explain / Summarize / Translate / Improve / Ask about
   selection_, and _Ask Tether about this page_.
+- **Long pages: the relevant parts, not the first few.** When a page, tab or
+  PDF doesn't fit, Tether splits it into heading-aware chunks and embeds
+  them with an embedding model on your machine. It sends the chunks most
+  relevant to your question, in page order with the gaps marked. Vectors
+  are cached, so a follow-up embeds only the question. This needs an
+  embedding model (`ollama pull nomic-embed-text`; `bge-m3` and
+  `embeddinggemma` work too). Without one, the page is cut from the top, as
+  before, and the context bar says so. Choose the model or turn this off
+  under _Settings → Pages_.
 - **Access is per site.** Tether can read a page right after you open it
   there. To read a site at any time, or show the bubble on it, allow that
   site (or all sites) when asked, or under _Settings → Pages_.
+
+### Inline compose
+
+Press **Cmd+K** (macOS) or **Ctrl+K** in a text box, textarea or rich-text
+editor on any site Tether may access. Or right-click a field and choose
+_Compose with Tether_. Then:
+
+- **Pick an action:** describe what you want ("write a polite decline"), or
+  pick Rewrite, Shorten, Fix spelling & grammar, or a tone (formal,
+  friendly, concise). It works on the selection if there is one, otherwise
+  on the whole field. In an empty field it writes new text.
+- **Review the change:** the result streams in as a word-by-word diff
+  against your text. Insertions are underlined and deletions struck
+  through.
+- **Accept or reject it:** **Accept** puts it in the field the way typing
+  would, so the page notices and **Undo** works. **Reject** or **Esc** leaves
+  the field as it was.
+
+It never opens in password, one-time-code or card fields. Your draft is
+sent to your model as text to edit, so instructions inside it aren't
+followed. Turn it off under _Settings → Pages_.
+
+### Prompt library
+
+Type **/** in the chat box for your prompts. For example,
+`/summarize focus on pricing` or `/translate French` with text selected.
+Templates can use these variables:
+
+- `{{page}}` and `{{selection}}` attach the page or the selection as a
+  context chip, so it stays fenced and fitted to the window like any other
+  page content.
+- `{{url}}` and `{{title}}` are the tab's address and title.
+- `{{input}}` is what you type after the command; `{{input|English}}` gives
+  a default.
+
+Seven prompts come built in. _Settings → Prompts_ lets you edit them, add
+your own, reset, and import or export the library as JSON. An invalid
+import is rejected whole, with the reason.
 
 ### Agent mode
 
@@ -270,10 +319,13 @@ src/
   lib/           messaging, port streaming, settings, db, logger
   providers/     backend adapters, stream parsers, registry, setup doctor
   context/       page extraction, injection scanner, token budget, PDFs
-  content/       highlight bubble and agent banner (run in pages)
+  content/       highlight bubble, inline compose and agent banner (run in pages)
   agent/         tool harness, agent loop, tools, action tiers, url guard,
                  traces; page/ is the page engine (snapshots, actions)
   prompting/     prompts, tolerant tool-call parser, grammars
+  rag/           chunking, vectors, retrieval fitting (embeddings in background/rag.ts)
+  compose/       word diff and the compose prompt
+  prompts/       prompt library and slash-command templates
   platform/      shims for browser-specific APIs (sidePanel, offscreen)
   components/ui/ vendored shadcn-style primitives
   hooks/         React hooks
@@ -313,5 +365,5 @@ DECISIONS.md     assumptions and architecture decisions
 | 3     | Page context, highlight-to-ask, context menus, PDFs              | ✅     |
 | 4     | Three-tier tool calling, fallback parser, grammars               | ✅     |
 | 5     | Computer use: observation, actions, guard rails, traces          | ✅     |
-| 6     | Local RAG, inline compose, prompt library                        | —      |
+| 6     | Local RAG, inline compose, prompt library                        | ✅     |
 | 7     | Vision tier, Firefox, packaging                                  | —      |
