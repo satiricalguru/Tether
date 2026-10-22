@@ -24,6 +24,9 @@ const TIERS = (process.env.TETHER_EVAL_TIERS ?? 'native,constrained,text').split
   'native' | 'constrained' | 'text'
 )[];
 const ONLY = process.env.TETHER_EVAL_TASKS?.split(',');
+/** The agent's own time limit per task; the test waits a little longer (see playwright.eval.config.ts). */
+const RUN_MINUTES = 6;
+const RUN_MS = RUN_MINUTES * 60_000 + 20_000;
 
 interface Row {
   tier: string;
@@ -163,7 +166,7 @@ async function startRun(f: RunFixtures, tier: string, start: string, task: strin
     { instanceId: 'ollama', kind: 'ollama', label: 'Ollama', baseUrl: ollama.url },
   ]);
   await f.serviceWorker.evaluate(
-    async ({ tier, model }) => {
+    async ({ tier, model, minutes }) => {
       const key = 'tether:settings';
       const s = (await chrome.storage.local.get(key))[key] as Record<
         string,
@@ -173,12 +176,12 @@ async function startRun(f: RunFixtures, tier: string, start: string, task: strin
         [key]: {
           ...s,
           selection: { instanceId: 'ollama', model },
-          // 4 minutes: the run ends on its own budget before the test's timeout.
-          agent: { ...s.agent, toolTier: tier, maxSteps: 12, maxMinutes: 4 },
+          // The run ends on its own budget before the test's timeout.
+          agent: { ...s.agent, toolTier: tier, maxSteps: 15, maxMinutes: minutes },
         },
       });
     },
-    { tier, model: MODEL },
+    { tier, model: MODEL, minutes: RUN_MINUTES },
   );
   const site = await f.context.newPage();
   await site.goto(`${f.sitesUrl}${start}`);
@@ -202,8 +205,8 @@ for (const tier of TIERS) {
       );
       const run = page.getByTestId('agent-run');
       await expect(run).toBeVisible();
-      // The agent's own 4-minute budget ends the run before the test timeout.
-      await expect(run).not.toHaveAttribute('data-status', 'running', { timeout: 290_000 });
+      // The agent's own time budget ends the run before the test timeout.
+      await expect(run).not.toHaveAttribute('data-status', 'running', { timeout: RUN_MS });
 
       const seconds = Math.round((Date.now() - started) / 1000);
       const record = await latestAgentRecord(page);
@@ -259,7 +262,7 @@ for (const tier of TIERS) {
       const confirmations: InteractiveOutcome['confirmations'] = [];
       const card = page.getByTestId('agent-confirm');
       while ((await run.getAttribute('data-status')) === 'running') {
-        if (Date.now() - started > 290_000) break;
+        if (Date.now() - started > RUN_MS) break;
         if (await card.isVisible()) {
           const name = (await card.innerText()).replace(/\s+/g, ' ');
           const approved =

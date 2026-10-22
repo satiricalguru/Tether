@@ -21,7 +21,7 @@ const RULES = `Rules:
 const COMPUTER_RULES = `Rules:
 - Do one action per reply. The page shows ELEMENTS, one per line as [id] <role> "name", then PAGE TEXT. Act on an element by its id, exactly as shown (e.g. "12" or "1.4").
 - Use only information from the page; never invent facts, prices or URLs. Follow links by clicking them, or navigate to an address shown after → .
-- To fill a field use type (it adds to what's there; clear first to replace). For dropdowns use select, for checkboxes and radios use check.
+- To fill a field use type (it replaces what the field holds). For dropdowns use select, for checkboxes and radios use check.
 - If what you need isn't listed, scroll or look for a "more"/next control. Close cookie banners and popups by refusing or dismissing them.
 - Some actions (submitting, buying, deleting, sending) ask the user first. If the user declines, don't try again; finish or askUser.
 - Never type passwords, codes or card numbers. For a login, CAPTCHA, or a choice only the user can make, call askUser.

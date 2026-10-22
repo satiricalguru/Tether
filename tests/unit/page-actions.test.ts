@@ -130,11 +130,20 @@ describe('type', () => {
     ]);
   });
 
-  it('appends to existing text and respects maxlength', async () => {
+  it('replaces existing text and respects maxlength', async () => {
     const { id } = setup('<input aria-label="Code" value="AB" maxlength="4">');
-    const r = await performAction({ kind: 'type', id: id('Code'), text: 'CDEF' }, { flash: false });
-    expect(document.querySelector('input')!.value).toBe('ABCD');
+    const r = await performAction(
+      { kind: 'type', id: id('Code'), text: 'CDEFG' },
+      { flash: false },
+    );
+    expect(document.querySelector('input')!.value).toBe('CDEF');
     expect(r.detail).toContain("stopped at the field's limit");
+  });
+
+  it('replaces the text of a contenteditable', async () => {
+    const { id } = setup('<div contenteditable="true" aria-label="Bio">Old bio</div>');
+    await performAction({ kind: 'type', id: id('Bio'), text: 'New' }, { flash: false });
+    expect(document.querySelector('[contenteditable]')!.textContent).toBe('New');
   });
 
   it('updates React-style controlled inputs (value tracker bypass)', async () => {

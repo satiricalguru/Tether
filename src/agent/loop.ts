@@ -376,7 +376,8 @@ export async function runAgent(input: RunInput): Promise<RunResult> {
           tools: input.tools,
           turn,
           complete: input.complete,
-          signal: ctx.signal,
+          // The time limit holds during a slow model call too, not only between steps.
+          signal: AbortSignal.any([ctx.signal, AbortSignal.timeout(Math.max(1, deadline - now()))]),
           check: (call) => {
             const wantsId =
               ELEMENT_TOOLS.has(call.name) ||
@@ -619,7 +620,9 @@ export async function runAgent(input: RunInput): Promise<RunResult> {
     }
     return result('failed', `Reached the step limit (${prefs.maxSteps}) without finishing.`);
   } catch (err) {
-    if (isAbortError(err) || ctx.signal.aborted) return result('stopped', 'Stopped.');
+    if (ctx.signal.aborted) return result('stopped', 'Stopped.');
+    if (now() >= deadline) return result('failed', `Ran out of time (${prefs.maxMinutes} min).`);
+    if (isAbortError(err)) return result('stopped', 'Stopped.');
     return result('failed', (err as Error).message);
   }
 }

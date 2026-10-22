@@ -151,7 +151,8 @@ export const COMPUTER_TOOLS: ToolSpec[] = [
   },
   {
     name: 'type',
-    description: 'Type text into a field. submit=true presses Enter afterwards.',
+    description:
+      'Type text into a field, replacing what it holds. submit=true presses Enter afterwards.',
     parameters: {
       type: 'object',
       properties: { id: ID, text: { type: 'string' }, submit: { type: 'boolean' } },

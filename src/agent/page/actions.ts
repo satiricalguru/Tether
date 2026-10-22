@@ -284,6 +284,11 @@ async function typeInto(
   let typed = 0;
   let wanted = 0;
   if (isTextField(target)) {
+    // type replaces the field's text: what a model means by "type X into Y".
+    if (target.value !== '' && beforeInput(target, 'deleteContentBackward', null)) {
+      setNativeValue(target, '');
+      inputEvent(target, 'deleteContentBackward', null);
+    }
     caretToEnd(target);
     const max = target.maxLength > 0 ? target.maxLength : Infinity;
     for (const ch of text) {
@@ -303,10 +308,24 @@ async function typeInto(
     const sel = doc.getSelection();
     if (sel) {
       const range = doc.createRange();
+      // Select everything, then delete it: type replaces the old text.
       range.selectNodeContents(target);
-      range.collapse(false);
       sel.removeAllRanges();
       sel.addRange(range);
+    }
+    if (target.textContent && beforeInput(target, 'deleteContentBackward', null)) {
+      let deleted: boolean;
+      try {
+        /* eslint-disable @typescript-eslint/no-deprecated */
+        deleted = typeof doc.execCommand === 'function' && doc.execCommand('delete', false);
+        /* eslint-enable @typescript-eslint/no-deprecated */
+      } catch {
+        deleted = false;
+      }
+      if (!deleted) {
+        target.textContent = '';
+        inputEvent(target, 'deleteContentBackward', null);
+      }
     }
     for (const ch of text) {
       wanted++;

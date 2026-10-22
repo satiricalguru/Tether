@@ -548,3 +548,18 @@ The same run showed two eval tasks that couldn't be passed:
 saving the form the task asked for. A task's `confirm` can now be a
 pattern: approve everything except matching actions (here, deletions).
 Eval runs also cap the agent at 4 minutes, inside the test's own timeout.
+
+### ADR-054 `type` replaces; the time limit holds during model calls
+
+The second interactive eval (20/35) showed two more harness faults. `type`
+appended, so typing "Sam" into a field holding "Jordan" gave
+"JordanSam". Models mean "make the field say X", so `type` now replaces a
+field's text (contenteditable included). The run's time limit was checked
+only between steps, so one slow model call could overrun it by minutes.
+Each model call now carries the deadline in its abort signal.
+
+On an Apple M2, ornith-1.5:9b takes 20–40 s a step. A 12-step checkout
+can't finish in 4 minutes, and nine runs ran out of time mid-task. Eval
+runs now get 6 minutes and 15 steps. That's a property of the hardware,
+not a tuning of the harness. The agent's default for users stays 5
+minutes, and it's adjustable in settings.

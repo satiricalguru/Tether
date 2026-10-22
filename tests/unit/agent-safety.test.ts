@@ -460,6 +460,24 @@ describe('runAgent with the page engine', () => {
     expect(textWindow('short', { y: 0, height: 0, viewport: 0 }, 200)).toBe('short');
   });
 
+  it('holds the time limit during a slow model call', async () => {
+    const page: FakePage = { url: 'https://a.test/', title: 'A', elements: [] };
+    const { input } = setup(page, []);
+    // A model that never answers until its signal aborts.
+    input.complete = (_req, signal) =>
+      new Promise((_resolve, reject) => {
+        signal.addEventListener('abort', () => {
+          reject(signal.reason as Error);
+        });
+      });
+    input.prefs = { ...input.prefs, maxMinutes: 0.002 }; // 120 ms
+    const r = await runAgent(input);
+    expect(r).toMatchObject({
+      status: 'failed',
+      summary: expect.stringContaining('Ran out of time') as string,
+    });
+  });
+
   it('hands CAPTCHAs to the user without acting', async () => {
     const { input, actions, requests } = setup(
       { url: 'https://a.test/', title: 'Check', elements: [], captcha: true },

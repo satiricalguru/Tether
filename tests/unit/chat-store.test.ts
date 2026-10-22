@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { toJson, toMarkdown, safeFilename } from '@/chat/export';
 import {
   appendMessage,
@@ -111,19 +111,39 @@ describe('conversation tree', () => {
 
 describe('history', () => {
   it('searches titles and message text, pinned first then most recent', async () => {
-    const a = await conv();
-    await appendMessage(a.id, null, { role: 'user', content: 'Rust lifetimes explained' });
-    const b = await conv();
-    await appendMessage(b.id, null, { role: 'user', content: 'Python tips' });
-    const bu = (await reload(b.id)).activeLeafId!;
-    await appendMessage(b.id, bu, { role: 'assistant', content: 'Unlike Rust, Python has a GC.' });
-    const c = await conv();
-    await appendMessage(c.id, null, { role: 'user', content: 'Unrelated' });
-    await updateConversation(a.id, { pinned: 1 });
+    // Ordering is by updatedAt in ms: give every write its own timestamp, or
+    // two writes in the same millisecond tie and the order flips.
+    vi.useFakeTimers({ toFake: ['Date'] });
+    let t = Date.now();
+    const tick = () => vi.setSystemTime((t += 1000));
+    try {
+      tick();
+      const a = await conv();
+      tick();
+      await appendMessage(a.id, null, { role: 'user', content: 'Rust lifetimes explained' });
+      tick();
+      const b = await conv();
+      tick();
+      await appendMessage(b.id, null, { role: 'user', content: 'Python tips' });
+      const bu = (await reload(b.id)).activeLeafId!;
+      tick();
+      await appendMessage(b.id, bu, {
+        role: 'assistant',
+        content: 'Unlike Rust, Python has a GC.',
+      });
+      tick();
+      const c = await conv();
+      tick();
+      await appendMessage(c.id, null, { role: 'user', content: 'Unrelated' });
+      tick();
+      await updateConversation(a.id, { pinned: 1 });
 
-    expect((await listConversations('rust')).map((x) => x.id)).toEqual([a.id, b.id]);
-    expect((await listConversations('')).map((x) => x.id)).toEqual([a.id, c.id, b.id]);
-    expect(await listConversations('nothing-matches')).toEqual([]);
+      expect((await listConversations('rust')).map((x) => x.id)).toEqual([a.id, b.id]);
+      expect((await listConversations('')).map((x) => x.id)).toEqual([a.id, c.id, b.id]);
+      expect(await listConversations('nothing-matches')).toEqual([]);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('deletes a conversation with its messages, and wipes everything', async () => {
