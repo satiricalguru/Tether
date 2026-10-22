@@ -13,6 +13,8 @@ import { INTERACTIVE_TASKS, type InteractiveOutcome } from './tasks-interactive'
  *
  *   TETHER_EVAL_MODEL=ornith-1.5:9b TETHER_EVAL_TIERS=native,constrained,text pnpm eval
  *
+ * TETHER_EVAL_SUITE=basic|interactive limits the run to the Phase 4 or Phase 5 tasks.
+ *
  * A failed task is a data point, not a test failure: results go to
  * tests/eval/results/<model>.json and a table is printed at the end.
  */
@@ -32,12 +34,16 @@ interface Row {
   seconds: number;
   repaired: number;
   invalid: number;
+  /** Each step as `action outcome: what the agent was told`, for diagnosing failures. */
+  trace?: string[];
 }
 /**
  * Rows are appended to a file as each run finishes. Playwright restarts the
  * worker after a timeout, which would wipe anything kept in memory.
  */
-const NAME = MODEL.replace(/[^\w.-]+/g, '_');
+// TETHER_EVAL_SUITE=interactive runs only the Phase 5 tasks (results in <model>.interactive.*).
+const SUITE = process.env.TETHER_EVAL_SUITE;
+const NAME = `${MODEL.replace(/[^\w.-]+/g, '_')}${SUITE ? `.${SUITE}` : ''}`;
 const ROWS_FILE = resolve(import.meta.dirname, 'results', `${NAME}.jsonl`);
 const readRows = (): Row[] =>
   existsSync(ROWS_FILE)
@@ -86,7 +92,7 @@ test.afterAll(async () => {
     ...rows.filter((r) => !r.pass).map((r) => `- ${r.tier} / ${r.task}: ${r.why ?? ''}`),
   ];
   const md = lines.join('\n');
-  const name = MODEL.replace(/[^\w.-]+/g, '_');
+  const name = NAME;
   writeFileSync(resolve(import.meta.dirname, 'results', `${name}.md`), `${md}\n`);
   writeFileSync(
     resolve(import.meta.dirname, 'results', `${name}.json`),
@@ -110,6 +116,7 @@ interface AgentRecord {
     steps: {
       action?: string;
       outcome: string;
+      summary?: string;
       repaired?: boolean;
       args?: Record<string, unknown> & { url?: string };
     }[];
@@ -134,6 +141,12 @@ function latestAgentRecord(page: Page): Promise<AgentRecord> {
     });
   });
 }
+
+const traceOf = (steps: AgentRecord['agent']['steps']) =>
+  steps.map(
+    (s) =>
+      `${s.action ?? '(invalid)'}${s.args ? ` ${JSON.stringify(s.args).slice(0, 120)}` : ''} ${s.outcome}: ${(s.summary ?? '').replace(/\s+/g, ' ').slice(0, 200)}`,
+  );
 
 interface RunFixtures {
   context: BrowserContext;
@@ -178,7 +191,7 @@ async function startRun(f: RunFixtures, tier: string, start: string, task: strin
 }
 
 for (const tier of TIERS) {
-  for (const t of TASKS.filter((x) => !ONLY || ONLY.includes(x.id))) {
+  for (const t of TASKS.filter((x) => SUITE !== 'interactive' && (!ONLY || ONLY.includes(x.id)))) {
     test(`${tier} · ${t.id}`, async ({ context, page, extensionUrl, serviceWorker, sitesUrl }) => {
       const { started } = await startRun(
         { context, page, extensionUrl, serviceWorker, sitesUrl },
@@ -211,6 +224,7 @@ for (const tier of TIERS) {
         seconds,
         repaired: steps.filter((s) => s.repaired).length,
         invalid: steps.filter((s) => s.outcome === 'invalid').length,
+        trace: traceOf(steps),
       });
       test.info().annotations.push({
         type: why === null ? 'pass' : 'fail',
@@ -229,7 +243,9 @@ for (const tier of TIERS) {
  * then reads the app's final state from the agent's tab.
  */
 for (const tier of TIERS) {
-  for (const t of INTERACTIVE_TASKS.filter((x) => !ONLY || ONLY.includes(x.id))) {
+  for (const t of INTERACTIVE_TASKS.filter(
+    (x) => SUITE !== 'basic' && (!ONLY || ONLY.includes(x.id)),
+  )) {
     test(`${tier} · ${t.id}`, async ({ context, page, extensionUrl, serviceWorker, sitesUrl }) => {
       const { site, started } = await startRun(
         { context, page, extensionUrl, serviceWorker, sitesUrl },
@@ -301,13 +317,16 @@ for (const tier of TIERS) {
         seconds,
         repaired: steps.filter((s) => s.repaired).length,
         invalid: steps.filter((s) => s.outcome === 'invalid').length,
+        trace: traceOf(steps),
       });
       const trail = outcome.actions.map((a) => a.action).join(' → ');
       test.info().annotations.push({
         type: why === null ? 'pass' : 'fail',
         description: `${trail} | ${outcome.summary.replace(/\s+/g, ' ').slice(0, 600)}${why ? ` | ${why}` : ''}`,
       });
-      console.log(`${tier} · ${t.id}: ${why === null ? 'PASS' : `FAIL (${why})`} — ${trail}`);
+      console.log(
+        `${tier} · ${t.id}: ${why === null ? 'PASS' : `FAIL (${why})`} — ${trail} — ${outcome.summary.replace(/\s+/g, ' ').slice(0, 600)}`,
+      );
     });
   }
 }
