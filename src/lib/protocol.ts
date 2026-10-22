@@ -12,6 +12,13 @@
  */
 
 import type { AgentEvent, RunResult } from '@/agent/loop';
+import type {
+  ActResult,
+  ElementPoint,
+  PageAction,
+  PageSnapshot,
+  SnapshotOptions,
+} from '@/agent/page/types';
 import type { AgentRunRequest } from '@/background/agent';
 import type { ChatDone, ChatStreamEvent, ChatStreamRequest } from '@/background/chat';
 import type { Attachment } from '@/context/attachments';
@@ -59,6 +66,17 @@ export interface MessageMap {
   'content:ping': { req: undefined; res: { url: string; title: string } };
   'content:extract': { req: { maxChars?: number }; res: PageExtract };
   'content:wait-text': { req: { text: string; timeoutMs: number }; res: { found: boolean } };
+  /** Page engine: the agent's numbered action space for this page. */
+  'content:snapshot': { req: { opts: SnapshotOptions }; res: PageSnapshot };
+  /** Page engine: perform one action on an element from the latest snapshot. */
+  'content:act': { req: { action: PageAction }; res: ActResult };
+  /** Page engine: wait until the DOM is quiet after an action. */
+  'content:stable': {
+    req: { quietMs?: number; capMs?: number };
+    res: { settledMs: number; reason: 'quiet' | 'cap' };
+  };
+  /** Page engine: top-level viewport point for a trusted (CDP) click. */
+  'content:point': { req: { id: string }; res: ElementPoint | null };
   'offscreen:ping': { req: undefined; res: PingResponse };
 }
 

@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Engine: geometry</title>
+    <style>
+      body {
+        font:
+          16px system-ui,
+          sans-serif;
+        margin: 24px;
+      }
+      .row {
+        margin: 4px 0;
+      }
+      .zero {
+        width: 0;
+        height: 0;
+        padding: 0;
+        border: 0;
+        overflow: hidden;
+      }
+      .clipped {
+        position: absolute;
+        clip-path: inset(50%);
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+      }
+      .covered-wrap {
+        position: relative;
+        height: 40px;
+      }
+      #modal {
+        padding: 24px;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Geometry</h1>
+    <button>Visible action</button>
+    <button style="display: none">Hidden display none</button>
+    <button style="visibility: hidden">Hidden visibility</button>
+    <button style="opacity: 0">Hidden opacity</button>
+    <button style="position: absolute; left: -9999px">Hidden offscreen</button>
+    <button class="zero">Hidden zero size</button>
+    <div aria-hidden="true"><button>Hidden aria</button></div>
+    <div style="visibility: hidden">
+      <button style="visibility: visible">Visible inside hidden</button>
+    </div>
+    <button id="open">Open settings</button>
+    <dialog id="modal" aria-label="Settings">
+      <p>Settings</p>
+      <label>Nickname <input id="nick" /></label>
+      <button id="close">Close settings</button>
+    </dialog>
+    <ol id="list"></ol>
+    <script>
+      const list = document.getElementById('list');
+      for (let i = 1; i <= 400; i++) {
+        const li = document.createElement('li');
+        li.className = 'row';
+        li.innerHTML = `<a href="/item/${i}">Item ${i}</a> <button>Add item ${i}</button>`;
+        list.append(li);
+      }
+      document
+        .getElementById('open')
+        .addEventListener('click', () => document.getElementById('modal').showModal());
+      document
+        .getElementById('close')
+        .addEventListener('click', () => document.getElementById('modal').close());
+    </script>
+  </body>
+</html>

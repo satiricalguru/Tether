@@ -1,4 +1,5 @@
 import { defineContentScript } from 'wxt/utils/define-content-script';
+import { pageHandlers } from '@/agent/page/handlers';
 import { installBubble, runtimeAlive } from '@/content/bubble';
 import { extractPage } from '@/context/extract';
 import { registerHandlers } from '@/lib/messaging';
@@ -55,6 +56,7 @@ export default defineContentScript({
       'content:extract': ({ maxChars }) =>
         extractPage(document, window, maxChars === undefined ? {} : { maxChars }),
       'content:wait-text': ({ text, timeoutMs }) => waitForText(text, timeoutMs),
+      ...pageHandlers(),
     });
 
     // Only the top frame gets a bubble; frames are read by the agent in Phase 5.

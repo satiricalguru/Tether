@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Engine: controlled form</title>
+    <style>
+      body {
+        font:
+          16px system-ui,
+          sans-serif;
+        margin: 24px;
+      }
+      label {
+        display: block;
+        margin: 12px 0;
+      }
+      /* Styled checkbox: the real input is visually hidden, the label is the target. */
+      .toggle input {
+        position: absolute;
+        opacity: 0;
+        width: 1px;
+        height: 1px;
+      }
+      .toggle span {
+        display: inline-block;
+        padding: 6px 10px;
+        border: 1px solid #888;
+        border-radius: 4px;
+      }
+      .toggle input:checked + span {
+        background: #2b6;
+        color: #fff;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Checkout details</h1>
+    <form id="f" aria-label="Details">
+      <label>Full name <input id="name" name="name" autocomplete="name" /></label>
+      <label
+        >Size
+        <select id="size" name="size">
+          <option value="">Choose…</option>
+          <option value="s">Small</option>
+          <option value="m">Medium</option>
+          <option value="l">Large</option>
+        </select>
+      </label>
+      <label class="toggle"
+        ><input type="checkbox" id="gift" name="gift" /><span>Gift wrap</span></label
+      >
+      <label
+        >Password <input type="password" id="pw" name="pw" autocomplete="current-password"
+      /></label>
+      <button type="submit">Place order</button>
+    </form>
+    <p id="state">state: name=""</p>
+    <p id="result"></p>
+    <p id="events"></p>
+    <script>
+      // A minimal React-style controlled input: React tracks the last value it
+      // rendered via an instance-level `value` property and only fires onChange
+      // when the DOM value differs from it. Plain `el.value = x` updates the
+      // tracker too, so React would never notice the change.
+      const input = document.getElementById('name');
+      const proto = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value');
+      let tracked = '';
+      let state = '';
+      Object.defineProperty(input, 'value', {
+        configurable: true,
+        get() {
+          return proto.get.call(this);
+        },
+        set(v) {
+          tracked = String(v);
+          proto.set.call(this, v);
+        },
+      });
+      input.addEventListener('input', () => {
+        if (input.value === tracked) return;
+        tracked = input.value;
+        state = input.value;
+        document.getElementById('state').textContent = `state: name="${state}"`;
+      });
+
+      // Record which trusted-shaped events the button saw.
+      const btn = document.querySelector('button');
+      const seen = [];
+      for (const t of ['pointerdown', 'mousedown', 'pointerup', 'mouseup', 'click']) {
+        btn.addEventListener(t, (e) =>
+          seen.push(`${t}@${Math.round(e.clientX)},${Math.round(e.clientY)}`),
+        );
+      }
+
+      document.getElementById('f').addEventListener('submit', (e) => {
+        e.preventDefault();
+        const fd = new FormData(e.target);
+        document.getElementById('result').textContent =
+          `Submitted: name=${state}; size=${fd.get('size')}; gift=${fd.get('gift') ? 'yes' : 'no'}`;
+        document.getElementById('events').textContent = seen.join(' ');
+      });
+    </script>
+  </body>
+</html>

@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Engine: inner frame</title>
+    <style>
+      body {
+        font:
+          14px system-ui,
+          sans-serif;
+        margin: 10px;
+      }
+      button {
+        margin-left: 30px;
+      }
+    </style>
+  </head>
+  <body>
+    <label>Email <input id="email" type="email" /></label>
+    <button id="sub">Subscribe</button>
+    <p id="done"></p>
+    <script>
+      document.getElementById('sub').addEventListener('click', (e) => {
+        document.getElementById('done').textContent =
+          `Subscribed ${document.getElementById('email').value} at ${Math.round(e.clientX)},${Math.round(e.clientY)}`;
+      });
+    </script>
+  </body>
+</html>

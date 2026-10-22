@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Engine: frames and shadow</title>
+    <style>
+      body {
+        font:
+          16px system-ui,
+          sans-serif;
+        margin: 0;
+        padding: 24px;
+      }
+      iframe {
+        display: block;
+        border: 1px solid #999;
+      }
+      #inner {
+        margin: 40px 0 0 120px;
+        width: 400px;
+        height: 200px;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Frames</h1>
+    <fancy-search></fancy-search>
+    <iframe id="inner" src="frame-inner.html" title="Newsletter"></iframe>
+    <iframe id="cross" title="Ads" width="300" height="80"></iframe>
+    <iframe
+      sandbox
+      srcdoc="<button>Sandboxed</button>"
+      title="Sandbox"
+      width="300"
+      height="60"
+    ></iframe>
+    <p id="log"></p>
+    <script>
+      customElements.define(
+        'fancy-search',
+        class extends HTMLElement {
+          constructor() {
+            super();
+            const root = this.attachShadow({ mode: 'open' });
+            root.innerHTML = '<input aria-label="Shadow search"><button>Shadow go</button>';
+            root.querySelector('button').addEventListener('click', () => {
+              document.getElementById('log').textContent =
+                'shadow:' + root.querySelector('input').value;
+            });
+          }
+        },
+      );
+      // Same page served from another origin = a cross-origin frame.
+      const cross = new URL('frame-inner.html', location.href);
+      cross.hostname = cross.hostname === 'localhost' ? '127.0.0.1' : 'localhost';
+      document.getElementById('cross').src = cross.href;
+    </script>
+  </body>
+</html>
