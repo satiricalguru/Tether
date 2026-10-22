@@ -10,6 +10,8 @@ const LOCAL_HOSTS = ['http://localhost/*', 'http://127.0.0.1/*', 'http://[::1]/*
 
 export default defineConfig({
   srcDir: 'src',
+  // A separate output (e.g. `.output-eval`) lets a long eval run while other builds happen.
+  outDir: process.env.TETHER_OUT_DIR ?? '.output',
   modules: ['@wxt-dev/module-react'],
   // Explicit imports everywhere: easier to read, lint and grep than auto-imports.
   imports: false,

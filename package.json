@@ -27,7 +27,7 @@
     "mock-llm": "node --experimental-strip-types tests/fixtures/mock-llm/cli.ts",
     "test:bundle": "vitest run --config vitest.bundle.config.ts",
     "e2e:real": "wxt build && TETHER_REAL_OLLAMA=1 playwright test real-ollama",
-    "eval": "wxt build && playwright test --config playwright.eval.config.ts"
+    "eval": "TETHER_OUT_DIR=.output-eval wxt build && TETHER_OUT_DIR=.output-eval playwright test --config playwright.eval.config.ts"
   },
   "dependencies": {
     "@mozilla/readability": "0.6.0",

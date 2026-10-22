@@ -7,6 +7,7 @@ export default tseslint.config(
   {
     ignores: [
       '.output/**',
+      '.output-eval/**',
       '.wxt/**',
       'node_modules/**',
       'playwright-report/**',
