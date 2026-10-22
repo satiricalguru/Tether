@@ -15,7 +15,13 @@ export interface Attachment {
   warnings: InjectionFinding[];
   /** Hidden text was present and left out; some of it looked like instructions. */
   hiddenExcluded?: { chars: number; suspicious: boolean };
+  /** How long text was fitted: relevant chunks kept, or why it was cut from the top instead. */
+  retrieval?: Retrieval;
 }
+
+export type Retrieval =
+  | { model: string; kept: number; total: number }
+  | { fallback: 'off' | 'no-model' | 'failed'; reason?: string };
 
 export const FENCE_TAG = 'untrusted_page_content';
 
