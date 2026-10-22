@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Fern Canyon reopens after storm repairs — Valley Gazette</title>
+    <link rel="stylesheet" href="/apps/style.css" />
+    <style>
+      #wall {
+        position: fixed;
+        inset: 0;
+        background: rgba(255, 255, 255, 0.97);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      #wall .box {
+        border: 1px solid #ccc;
+        border-radius: 10px;
+        padding: 1.25rem;
+        max-width: 26rem;
+        background: #fff;
+      }
+      article.blocked {
+        filter: blur(6px);
+        user-select: none;
+      }
+    </style>
+  </head>
+  <body>
+    <header><span class="brand">Valley Gazette</span></header>
+    <article id="story" class="blocked">
+      <h1>Fern Canyon reopens after storm repairs</h1>
+      <p>
+        Fern Canyon reopened to hikers on Monday after three weeks of repairs following the October
+        storms. Crews replaced the wooden ladder at mile 2, which had been washed out, and cleared
+        fallen alders from the lower trail.
+      </p>
+      <p>
+        Rangers recommend waterproof boots: the creek crossing near the trailhead is still running
+        high.
+      </p>
+    </article>
+    <div id="wall" role="dialog" aria-modal="true" aria-labelledby="wall-title">
+      <div class="box">
+        <h2 id="wall-title">We value your privacy</h2>
+        <p>
+          We and our partners use cookies for analytics and personalised ads. Choose how we may use
+          them.
+        </p>
+        <p class="row">
+          <button class="primary" id="accept" type="button">Accept all</button>
+          <button id="reject" type="button">Reject non-essential</button>
+          <button id="manage" type="button">Manage options</button>
+        </p>
+      </div>
+    </div>
+    <script>
+      const story = document.getElementById('story');
+      // Hidden from text extraction until a choice is made, like real walls.
+      story.setAttribute('aria-hidden', 'true');
+      const choose = (v) => {
+        localStorage.setItem('cookiewall:choice', v);
+        document.getElementById('wall').remove();
+        story.classList.remove('blocked');
+        story.removeAttribute('aria-hidden');
+      };
+      document.getElementById('accept').onclick = () => choose('accept');
+      document.getElementById('reject').onclick = () => choose('reject');
+      document.getElementById('manage').onclick = () => choose('manage-reject');
+    </script>
+  </body>
+</html>

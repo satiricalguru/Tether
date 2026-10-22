@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Preferences — Trail log</title>
+    <link rel="stylesheet" href="/apps/style.css" />
+    <style>
+      [role='switch'] {
+        width: 2.6rem;
+        height: 1.4rem;
+        border-radius: 1rem;
+        border: 1px solid #888;
+        background: #ddd;
+        position: relative;
+        padding: 0;
+      }
+      [role='switch'][aria-checked='true'] {
+        background: #1f5fd6;
+      }
+      [role='switch']::after {
+        content: '';
+        position: absolute;
+        top: 2px;
+        left: 2px;
+        width: 1.1rem;
+        height: 1.1rem;
+        border-radius: 50%;
+        background: #fff;
+      }
+      [role='switch'][aria-checked='true']::after {
+        left: 1.3rem;
+      }
+      #bio {
+        border: 1px solid #aaa;
+        border-radius: 6px;
+        padding: 0.4rem;
+        min-height: 3rem;
+      }
+    </style>
+  </head>
+  <body>
+    <header><span class="brand">Trail log</span><span>Preferences</span></header>
+    <h1>Preferences</h1>
+    <div class="row">
+      <span id="email-label">Email notifications</span
+      ><button
+        type="button"
+        role="switch"
+        aria-checked="true"
+        aria-labelledby="email-label"
+        id="email"
+      ></button>
+    </div>
+    <div class="row">
+      <span id="dark-label">Dark mode</span
+      ><button
+        type="button"
+        role="switch"
+        aria-checked="false"
+        aria-labelledby="dark-label"
+        id="dark"
+      ></button>
+    </div>
+    <label for="size">Text size</label>
+    <input id="size" type="range" min="12" max="24" value="16" />
+    <fieldset>
+      <legend>Units</legend>
+      <label class="row"
+        ><input type="radio" name="units" value="metric" checked /> Metric (km, m)</label
+      >
+      <label class="row"
+        ><input type="radio" name="units" value="imperial" /> Imperial (mi, ft)</label
+      >
+    </fieldset>
+    <label id="bio-label">Bio</label>
+    <div id="bio" contenteditable="true" role="textbox" aria-labelledby="bio-label"></div>
+    <p id="saved" class="ok" role="status"></p>
+    <p><button class="primary" id="save" type="button">Save preferences</button></p>
+    <script>
+      for (const sw of document.querySelectorAll('[role="switch"]')) {
+        sw.addEventListener('click', () =>
+          sw.setAttribute('aria-checked', String(sw.getAttribute('aria-checked') !== 'true')),
+        );
+      }
+      document.getElementById('save').addEventListener('click', () => {
+        const prefs = {
+          email: document.getElementById('email').getAttribute('aria-checked') === 'true',
+          darkMode: document.getElementById('dark').getAttribute('aria-checked') === 'true',
+          textSize: Number(document.getElementById('size').value),
+          units: document.querySelector('input[name="units"]:checked').value,
+          bio: document.getElementById('bio').innerText.trim(),
+        };
+        localStorage.setItem('settings:saved', JSON.stringify(prefs));
+        document.getElementById('saved').textContent = 'Preferences saved.';
+      });
+    </script>
+  </body>
+</html>

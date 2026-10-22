@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Backcountry permits — Pine Valley Park</title>
+    <link rel="stylesheet" href="/apps/style.css" />
+  </head>
+  <body>
+    <header><span class="brand">Pine Valley Park</span><span>Permit office</span></header>
+    <h1>Backcountry permits</h1>
+    <table>
+      <thead>
+        <tr>
+          <th><button type="button" data-sort="id">Permit</button></th>
+          <th><button type="button" data-sort="trail">Trail</button></th>
+          <th><button type="button" data-sort="date">Start date</button></th>
+          <th><button type="button" data-sort="party">Party size</button></th>
+          <th><button type="button" data-sort="status">Status</button></th>
+        </tr>
+      </thead>
+      <tbody id="rows"></tbody>
+    </table>
+    <p class="row">
+      <button type="button" id="prev">Previous page</button>
+      <span id="page"></span>
+      <button type="button" id="next">Next page</button>
+    </p>
+    <script>
+      const DATA = [
+        ['P-1001', 'Ridge Loop', '2026-11-02', 2, 'Approved'],
+        ['P-1002', 'Lakeshore Path', '2026-11-03', 4, 'Approved'],
+        ['P-1003', 'Ridge Loop', '2026-11-05', 3, 'Pending'],
+        ['P-1004', 'Fern Canyon', '2026-11-05', 1, 'Rejected'],
+        ['P-1005', 'Summit Trail', '2026-11-06', 2, 'Approved'],
+        ['P-1006', 'Lakeshore Path', '2026-11-08', 6, 'Approved'],
+        ['P-1007', 'Hawk Ridge', '2026-11-09', 2, 'Rejected'],
+        ['P-1008', 'Fern Canyon', '2026-11-10', 5, 'Pending'],
+        ['P-1009', 'Ridge Loop', '2026-11-12', 2, 'Approved'],
+        ['P-1010', 'Summit Trail', '2026-11-13', 3, 'Approved'],
+        ['P-1011', 'Lakeshore Path', '2026-11-14', 2, 'Pending'],
+        ['P-1012', 'Hawk Ridge', '2026-11-15', 4, 'Approved'],
+        ['P-1013', 'Fern Canyon', '2026-11-16', 2, 'Approved'],
+        ['P-1014', 'Summit Trail', '2026-11-18', 1, 'Pending'],
+        ['P-1015', 'Ridge Loop', '2026-11-20', 3, 'Rejected'],
+      ].map(([id, trail, date, party, status]) => ({ id, trail, date, party, status }));
+      const PER_PAGE = 8;
+      let page = 0;
+      let sortKey = 'id';
+      let asc = true;
+      function render() {
+        const sorted = [...DATA].sort(
+          (a, b) =>
+            (a[sortKey] > b[sortKey] ? 1 : a[sortKey] < b[sortKey] ? -1 : 0) * (asc ? 1 : -1),
+        );
+        const pages = Math.ceil(sorted.length / PER_PAGE);
+        const body = document.getElementById('rows');
+        body.replaceChildren();
+        for (const r of sorted.slice(page * PER_PAGE, (page + 1) * PER_PAGE)) {
+          const tr = document.createElement('tr');
+          for (const v of [r.id, r.trail, r.date, r.party, r.status]) {
+            const td = document.createElement('td');
+            td.textContent = String(v);
+            tr.append(td);
+          }
+          body.append(tr);
+        }
+        document.getElementById('page').textContent = `Page ${page + 1} of ${pages}`;
+        document.getElementById('prev').disabled = page === 0;
+        document.getElementById('next').disabled = page >= pages - 1;
+      }
+      document.getElementById('prev').onclick = () => {
+        page -= 1;
+        render();
+      };
+      document.getElementById('next').onclick = () => {
+        page += 1;
+        render();
+      };
+      for (const b of document.querySelectorAll('[data-sort]')) {
+        b.onclick = () => {
+          asc = sortKey === b.dataset.sort ? !asc : true;
+          sortKey = b.dataset.sort;
+          page = 0;
+          render();
+        };
+      }
+      render();
+    </script>
+  </body>
+</html>

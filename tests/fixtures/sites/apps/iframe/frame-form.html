@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Contact form</title>
+    <link rel="stylesheet" href="/apps/style.css" />
+  </head>
+  <body style="margin: 0.5rem">
+    <form id="contact">
+      <label for="name">Your name</label>
+      <input id="name" type="text" />
+      <label for="topic">Topic</label>
+      <select id="topic">
+        <option value="">Choose a topic…</option>
+        <option value="billing">Billing and permits</option>
+        <option value="conditions">Trail conditions</option>
+        <option value="lost-found">Lost and found</option>
+        <option value="other">Something else</option>
+      </select>
+      <label for="message">Message</label>
+      <textarea id="message" rows="4" cols="40"></textarea>
+      <p id="msg" role="status"></p>
+      <p><button class="primary" type="submit">Send message</button></p>
+    </form>
+    <script>
+      document.getElementById('contact').addEventListener('submit', (e) => {
+        e.preventDefault();
+        const data = {
+          name: document.getElementById('name').value.trim(),
+          topic: document.getElementById('topic').value,
+          message: document.getElementById('message').value.trim(),
+        };
+        if (!data.name || !data.topic || !data.message) {
+          document.getElementById('msg').textContent = 'Please fill in every field.';
+          return;
+        }
+        localStorage.setItem('iframe:message', JSON.stringify(data));
+        document.getElementById('msg').textContent = 'Thanks! Your message was sent.';
+      });
+    </script>
+  </body>
+</html>

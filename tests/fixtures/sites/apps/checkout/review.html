@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Review order — Trailhead Outfitters</title>
+    <link rel="stylesheet" href="/apps/style.css" />
+    <script src="/apps/checkout/cart-store.js"></script>
+  </head>
+  <body>
+    <header>
+      <span class="brand">Trailhead Outfitters</span><span>Step 3 of 3 · Review</span>
+    </header>
+    <h1>Review your order</h1>
+    <div id="summary" class="card"></div>
+    <h2>Payment</h2>
+    <fieldset>
+      <label class="row"
+        ><input type="radio" name="pay" value="delivery" checked /> Pay on delivery</label
+      >
+    </fieldset>
+    <label for="card">Card number (optional, for faster future checkout)</label>
+    <input id="card" name="card" type="text" inputmode="numeric" autocomplete="cc-number" />
+    <p><a href="/apps/checkout/shipping.html">Edit shipping</a></p>
+    <p><button class="primary" id="place" type="button">Place order</button></p>
+    <script>
+      const cart = loadCart();
+      const ship = JSON.parse(sessionStorage.getItem('checkout:shipping') || 'null');
+      const box = document.getElementById('summary');
+      if (!ship) {
+        box.textContent = 'Shipping details are missing.';
+      } else {
+        box.innerText = [
+          ...cart.map((i) => `${i.qty} × ${i.name} — $${i.price * i.qty}`),
+          `Total: $${cartTotal(cart) + (ship.method === 'express' ? 15 : 0)}`,
+          `Ship to: ${ship.name}, ${ship.address}, ${ship.city} ${ship.zip}, ${ship.country} (${ship.method})`,
+        ].join('\n');
+      }
+      document.getElementById('place').addEventListener('click', () => {
+        if (!ship || cart.length === 0) return;
+        const order = {
+          items: cart.map((i) => ({ id: i.id, qty: i.qty })),
+          shipping: ship,
+          payment: 'delivery',
+          cardNumber: document.getElementById('card').value,
+          placedAt: Date.now(),
+        };
+        sessionStorage.setItem('checkout:order', JSON.stringify(order));
+        location.href = '/apps/checkout/confirmation.html';
+      });
+    </script>
+  </body>
+</html>

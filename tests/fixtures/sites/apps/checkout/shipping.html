@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Shipping — Trailhead Outfitters</title>
+    <link rel="stylesheet" href="/apps/style.css" />
+  </head>
+  <body>
+    <header>
+      <span class="brand">Trailhead Outfitters</span><span>Step 2 of 3 · Shipping</span>
+    </header>
+    <h1>Shipping details</h1>
+    <form id="ship" novalidate>
+      <label for="name">Full name</label>
+      <input id="name" name="name" type="text" autocomplete="name" />
+      <label for="address">Street address</label>
+      <input id="address" name="address" type="text" autocomplete="street-address" />
+      <label for="city">City</label>
+      <input id="city" name="city" type="text" />
+      <label for="zip">ZIP / postal code</label>
+      <input id="zip" name="zip" type="text" />
+      <label for="country">Country</label>
+      <select id="country" name="country">
+        <option value="">Choose…</option>
+        <option value="US">United States</option>
+        <option value="CA">Canada</option>
+        <option value="GB">United Kingdom</option>
+        <option value="IN">India</option>
+      </select>
+      <fieldset>
+        <legend>Shipping method</legend>
+        <label class="row"
+          ><input type="radio" name="method" value="standard" /> Standard (5–7 days, free)</label
+        >
+        <label class="row"
+          ><input type="radio" name="method" value="express" /> Express (2 days, $15)</label
+        >
+      </fieldset>
+      <p id="errors" class="error" role="alert"></p>
+      <p><button class="primary" type="submit">Continue to review</button></p>
+    </form>
+    <script>
+      const saved = JSON.parse(sessionStorage.getItem('checkout:shipping') || 'null');
+      const form = document.getElementById('ship');
+      if (saved)
+        for (const [k, v] of Object.entries(saved)) {
+          const el = form.elements[k];
+          if (el && 'value' in el) el.value = v;
+        }
+      form.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const data = Object.fromEntries(new FormData(form));
+        const missing = ['name', 'address', 'city', 'zip', 'country', 'method'].filter(
+          (k) => !String(data[k] || '').trim(),
+        );
+        if (missing.length) {
+          document.getElementById('errors').textContent = `Please fill in: ${missing.join(', ')}.`;
+          return;
+        }
+        sessionStorage.setItem('checkout:shipping', JSON.stringify(data));
+        location.href = '/apps/checkout/review.html';
+      });
+    </script>
+  </body>
+</html>

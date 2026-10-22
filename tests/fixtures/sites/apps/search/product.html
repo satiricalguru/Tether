@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Product — Northwind Gear</title>
+    <link rel="stylesheet" href="/apps/style.css" />
+    <script src="/apps/search/data.js"></script>
+  </head>
+  <body>
+    <header>
+      <span class="brand">Northwind Gear</span><a href="/apps/search/index.html">Search</a>
+    </header>
+    <main id="product"></main>
+    <script>
+      const item = window.CATALOG.find(
+        (i) => i.id === new URLSearchParams(location.search).get('id'),
+      );
+      const main = document.getElementById('product');
+      if (!item) {
+        main.textContent = 'Product not found.';
+      } else {
+        document.title = `${item.name} — Northwind Gear`;
+        const h = document.createElement('h1');
+        h.textContent = item.name;
+        const price = document.createElement('p');
+        price.textContent = `$${item.price}`;
+        const stock = document.createElement('p');
+        stock.textContent = item.stock ? 'In stock' : 'Out of stock';
+        const d = document.createElement('p');
+        d.textContent = item.desc;
+        main.append(h, price, stock, d);
+      }
+    </script>
+  </body>
+</html>

@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Trail log — community reports</title>
+    <link rel="stylesheet" href="/apps/style.css" />
+    <style>
+      /* Tall rows: the first batch fills the viewport, so loading needs scrolling. */
+      #feed li {
+        padding: 0.6rem 0;
+        border-bottom: 1px solid #eee;
+      }
+    </style>
+  </head>
+  <body>
+    <header><span class="brand">Trail log</span><span>Latest community reports</span></header>
+    <h1>Trail log</h1>
+    <ol id="feed"></ol>
+    <p id="loading" hidden>Loading more…</p>
+    <div id="sentinel" style="height: 1px"></div>
+    <script>
+      const PLACES = [
+        'Cedar Flats',
+        'Hawk Ridge',
+        'Mill Creek',
+        'Quarry Rim',
+        'Birch Hollow',
+        'Echo Point',
+        'Granite Steps',
+        'Willow Bend',
+      ];
+      const SPECIAL = 65;
+      let count = 0;
+      let loads = 0;
+      let busy = false;
+      const feed = document.getElementById('feed');
+      function entry(n) {
+        if (n === SPECIAL)
+          return `Entry ${n}: Lost Lake overlook — permit fee $14, gate opens at 7am.`;
+        const place = PLACES[n % PLACES.length];
+        return `Entry ${n}: ${place} — trail clear, ${((n * 7) % 30) + 5} hikers reported.`;
+      }
+      function addBatch() {
+        for (let i = 0; i < 20; i++) {
+          count += 1;
+          const li = document.createElement('li');
+          li.textContent = entry(count);
+          feed.append(li);
+        }
+      }
+      addBatch();
+      new IntersectionObserver((entries) => {
+        if (!entries.some((e) => e.isIntersecting) || busy || count >= 100) return;
+        busy = true;
+        document.getElementById('loading').hidden = false;
+        setTimeout(() => {
+          addBatch();
+          loads += 1;
+          localStorage.setItem('infinite:loads', String(loads));
+          document.getElementById('loading').hidden = true;
+          busy = false;
+        }, 300);
+      }).observe(document.getElementById('sentinel'));
+    </script>
+  </body>
+</html>

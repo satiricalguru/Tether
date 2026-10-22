@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Northwind Gear — Search</title>
+    <link rel="stylesheet" href="/apps/style.css" />
+  </head>
+  <body>
+    <header>
+      <span class="brand">Northwind Gear</span><a href="/apps/search/index.html">Search</a>
+    </header>
+    <h1>Search the store</h1>
+    <form action="/apps/search/results.html" method="get" role="search">
+      <label for="q">Search</label>
+      <input id="q" name="q" type="search" placeholder="What are you looking for?" />
+      <label for="cat">Category</label>
+      <select id="cat" name="cat">
+        <option value="all">All categories</option>
+        <option value="audio">Audio</option>
+        <option value="accessories">Accessories</option>
+        <option value="outdoor">Outdoor</option>
+      </select>
+      <label class="row"><input type="checkbox" name="stock" value="1" /> In stock only</label>
+      <p><button class="primary" type="submit">Search</button></p>
+    </form>
+  </body>
+</html>

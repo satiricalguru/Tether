@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Ridgeline Weekly — trail news</title>
+    <link rel="stylesheet" href="/apps/style.css" />
+    <style>
+      #cookies {
+        position: fixed;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: #222;
+        color: #fff;
+        padding: 1rem;
+        display: flex;
+        gap: 1rem;
+        align-items: center;
+      }
+      #backdrop {
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.45);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      /* display:flex above would otherwise override the hidden attribute. */
+      #backdrop[hidden] {
+        display: none;
+      }
+      #dialog {
+        background: #fff;
+        border-radius: 10px;
+        padding: 1rem 1.25rem;
+        min-width: 22rem;
+      }
+    </style>
+  </head>
+  <body>
+    <header><span class="brand">Ridgeline Weekly</span></header>
+    <h1>Trail news, every week</h1>
+    <p>Get trail openings, closures and gear deals straight to your inbox.</p>
+    <p><button class="primary" id="open" type="button">Subscribe</button></p>
+    <div id="cookies" role="region" aria-label="Cookie consent">
+      <span>We use cookies to improve this site.</span>
+      <button id="accept" type="button">Accept all</button>
+      <button id="reject" type="button">Reject non-essential</button>
+    </div>
+    <div id="backdrop" hidden>
+      <div id="dialog" role="dialog" aria-modal="true" aria-labelledby="dlg-title">
+        <h2 id="dlg-title">Join the newsletter</h2>
+        <newsletter-form></newsletter-form>
+        <p><button id="close" type="button">Close</button></p>
+      </div>
+    </div>
+    <script>
+      const choose = (v) => {
+        localStorage.setItem('modal:cookies', v);
+        document.getElementById('cookies').remove();
+      };
+      document.getElementById('accept').onclick = () => choose('accept');
+      document.getElementById('reject').onclick = () => choose('reject');
+      document.getElementById('open').onclick = () =>
+        (document.getElementById('backdrop').hidden = false);
+      document.getElementById('close').onclick = () =>
+        (document.getElementById('backdrop').hidden = true);
+
+      class NewsletterForm extends HTMLElement {
+        connectedCallback() {
+          const root = this.attachShadow({ mode: 'open' });
+          root.innerHTML = `
+            <style>label{display:block;margin:.5rem 0 .2rem}input,select{font:inherit;padding:.3rem}</style>
+            <form>
+              <label for="email">Email address</label>
+              <input id="email" type="email" />
+              <label for="freq">How often?</label>
+              <select id="freq">
+                <option value="weekly">Weekly</option>
+                <option value="daily">Daily</option>
+                <option value="monthly">Monthly</option>
+              </select>
+              <p><button type="submit">Subscribe now</button></p>
+              <p id="msg" role="status"></p>
+            </form>`;
+          root.querySelector('form').addEventListener('submit', (e) => {
+            e.preventDefault();
+            const email = root.getElementById('email').value.trim();
+            if (!email.includes('@')) {
+              root.getElementById('msg').textContent = 'Please enter a valid email.';
+              return;
+            }
+            const frequency = root.getElementById('freq').value;
+            localStorage.setItem('modal:subscription', JSON.stringify({ email, frequency }));
+            root.getElementById('msg').textContent = `Subscribed ${email} (${frequency}).`;
+          });
+        }
+      }
+      customElements.define('newsletter-form', NewsletterForm);
+    </script>
+  </body>
+</html>

@@ -1,0 +1,94 @@
+/* Shared look for the eval apps. Local only: no fonts or assets from the network. */
+* {
+  box-sizing: border-box;
+}
+body {
+  font:
+    15px/1.5 system-ui,
+    -apple-system,
+    'Segoe UI',
+    sans-serif;
+  color: #1f2328;
+  background: #fff;
+  max-width: 46rem;
+  margin: 1.5rem auto;
+  padding: 0 1rem;
+}
+header {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+  border-bottom: 1px solid #ddd;
+  padding-bottom: 0.5rem;
+  margin-bottom: 1rem;
+}
+header .brand {
+  font-weight: 700;
+}
+a {
+  color: #1f5fd6;
+}
+label {
+  display: block;
+  margin: 0.6rem 0 0.2rem;
+  font-weight: 500;
+}
+input[type='text'],
+input[type='email'],
+input[type='password'],
+input[type='search'],
+select,
+textarea {
+  font: inherit;
+  padding: 0.35rem 0.5rem;
+  border: 1px solid #aaa;
+  border-radius: 6px;
+  min-width: 16rem;
+}
+button {
+  font: inherit;
+  padding: 0.35rem 0.9rem;
+  border-radius: 6px;
+  border: 1px solid #888;
+  background: #f4f4f4;
+  cursor: pointer;
+}
+button.primary {
+  background: #1f5fd6;
+  color: #fff;
+  border-color: #1f5fd6;
+}
+button.danger {
+  background: #c62828;
+  color: #fff;
+  border-color: #c62828;
+}
+.error {
+  color: #c62828;
+  font-size: 0.9em;
+}
+.ok {
+  color: #1f7a3f;
+  font-weight: 600;
+}
+.card {
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  padding: 0.75rem 1rem;
+  margin: 0.5rem 0;
+}
+table {
+  border-collapse: collapse;
+  width: 100%;
+}
+th,
+td {
+  border-bottom: 1px solid #ddd;
+  padding: 0.35rem 0.5rem;
+  text-align: left;
+}
+.row {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}

@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Your cart — Trailhead Outfitters</title>
+    <link rel="stylesheet" href="/apps/style.css" />
+    <script src="/apps/checkout/cart-store.js"></script>
+  </head>
+  <body>
+    <header><span class="brand">Trailhead Outfitters</span><span>Step 1 of 3 · Cart</span></header>
+    <h1>Your cart</h1>
+    <div id="items"></div>
+    <p id="total"></p>
+    <p><button class="primary" id="continue" type="button">Continue to shipping</button></p>
+    <script>
+      function render() {
+        const cart = loadCart();
+        const box = document.getElementById('items');
+        box.replaceChildren();
+        for (const item of cart) {
+          const card = document.createElement('div');
+          card.className = 'card row';
+          const name = document.createElement('span');
+          name.textContent = `${item.name} — $${item.price} each`;
+          const label = document.createElement('label');
+          label.textContent = 'Qty';
+          label.htmlFor = `qty-${item.id}`;
+          const qty = document.createElement('select');
+          qty.id = `qty-${item.id}`;
+          for (let n = 1; n <= 5; n++) {
+            const o = document.createElement('option');
+            o.value = String(n);
+            o.textContent = String(n);
+            if (n === item.qty) o.selected = true;
+            qty.append(o);
+          }
+          qty.addEventListener('change', () => {
+            const c = loadCart();
+            c.find((x) => x.id === item.id).qty = Number(qty.value);
+            saveCart(c);
+            render();
+          });
+          const remove = document.createElement('button');
+          remove.type = 'button';
+          remove.textContent = `Remove ${item.name}`;
+          remove.addEventListener('click', () => {
+            saveCart(loadCart().filter((x) => x.id !== item.id));
+            render();
+          });
+          card.append(name, label, qty, remove);
+          box.append(card);
+        }
+        if (cart.length === 0) box.textContent = 'Your cart is empty.';
+        document.getElementById('total').textContent = `Subtotal: $${cartTotal(cart)}`;
+      }
+      render();
+      document.getElementById('continue').addEventListener('click', () => {
+        location.href = '/apps/checkout/shipping.html';
+      });
+    </script>
+  </body>
+</html>

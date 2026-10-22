@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>My list — Todo</title>
+    <link rel="stylesheet" href="/apps/style.css" />
+  </head>
+  <body>
+    <header><span class="brand">Todo</span></header>
+    <h1>My list</h1>
+    <form id="add" class="row">
+      <label for="new" style="margin: 0">New item</label>
+      <input id="new" type="text" placeholder="What needs doing?" />
+      <button class="primary" type="submit">Add</button>
+    </form>
+    <ul id="list"></ul>
+    <script>
+      const KEY = 'todo:items';
+      const DEFAULTS = [
+        { text: 'water plants', done: false },
+        { text: 'call grandma', done: false },
+        { text: 'fix bike light', done: true },
+      ];
+      const load = () => JSON.parse(localStorage.getItem(KEY) || 'null') || DEFAULTS;
+      const save = (items) => localStorage.setItem(KEY, JSON.stringify(items));
+      if (!localStorage.getItem(KEY)) save(DEFAULTS);
+      function render() {
+        const list = document.getElementById('list');
+        list.replaceChildren();
+        load().forEach((item, i) => {
+          const li = document.createElement('li');
+          li.className = 'row';
+          const box = document.createElement('input');
+          box.type = 'checkbox';
+          box.id = `item-${i}`;
+          box.checked = item.done;
+          box.onchange = () => {
+            const items = load();
+            items[i].done = box.checked;
+            save(items);
+          };
+          const label = document.createElement('label');
+          label.htmlFor = box.id;
+          label.style.margin = '0';
+          label.textContent = item.text;
+          const del = document.createElement('button');
+          del.type = 'button';
+          del.textContent = `Delete "${item.text}"`;
+          del.onclick = () => {
+            save(load().filter((_, j) => j !== i));
+            render();
+          };
+          li.append(box, label, del);
+          list.append(li);
+        });
+      }
+      document.getElementById('add').addEventListener('submit', (e) => {
+        e.preventDefault();
+        const input = document.getElementById('new');
+        const text = input.value.trim();
+        if (!text) return;
+        save([...load(), { text, done: false }]);
+        input.value = '';
+        render();
+      });
+      render();
+    </script>
+  </body>
+</html>

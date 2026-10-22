@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Order placed — Trailhead Outfitters</title>
+    <link rel="stylesheet" href="/apps/style.css" />
+  </head>
+  <body>
+    <header><span class="brand">Trailhead Outfitters</span></header>
+    <h1 id="msg">Order placed</h1>
+    <p id="detail"></p>
+    <script>
+      const order = JSON.parse(sessionStorage.getItem('checkout:order') || 'null');
+      if (!order) {
+        document.getElementById('msg').textContent = 'No order found';
+      } else {
+        document.getElementById('detail').textContent =
+          `Order TH-4471 will ship to ${order.shipping.name}. You'll pay on delivery.`;
+      }
+    </script>
+  </body>
+</html>

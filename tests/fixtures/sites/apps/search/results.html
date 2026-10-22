@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Search results — Northwind Gear</title>
+    <link rel="stylesheet" href="/apps/style.css" />
+    <script src="/apps/search/data.js"></script>
+  </head>
+  <body>
+    <header>
+      <span class="brand">Northwind Gear</span><a href="/apps/search/index.html">New search</a>
+    </header>
+    <h1>Results</h1>
+    <p id="summary"></p>
+    <ul id="results"></ul>
+    <script>
+      const p = new URLSearchParams(location.search);
+      const q = (p.get('q') || '').trim().toLowerCase();
+      const cat = p.get('cat') || 'all';
+      const stock = p.get('stock') === '1';
+      const words = q.split(/\s+/).filter(Boolean);
+      const hits = window.CATALOG.filter(
+        (item) =>
+          words.every((w) => item.name.toLowerCase().includes(w.replace(/s$/, ''))) &&
+          (cat === 'all' || item.cat === cat) &&
+          (!stock || item.stock),
+      );
+      document.getElementById('summary').textContent =
+        `${hits.length} result${hits.length === 1 ? '' : 's'} for “${p.get('q') || ''}”` +
+        (cat !== 'all' ? ` in ${cat}` : '') +
+        (stock ? ', in stock only' : '');
+      const ul = document.getElementById('results');
+      for (const item of hits) {
+        const li = document.createElement('li');
+        const a = document.createElement('a');
+        a.href = `/apps/search/product.html?id=${item.id}`;
+        a.textContent = item.name;
+        li.append(a, ` — $${item.price}${item.stock ? '' : ' (out of stock)'}`);
+        ul.append(li);
+      }
+    </script>
+  </body>
+</html>

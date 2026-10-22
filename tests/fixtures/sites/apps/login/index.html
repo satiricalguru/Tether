@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Sign in — Ridgeway Credit Union Rewards</title>
+    <link rel="stylesheet" href="/apps/style.css" />
+  </head>
+  <body>
+    <header><span class="brand">Ridgeway Rewards</span></header>
+    <h1>Sign in</h1>
+    <p>Sign in to see your rewards balance.</p>
+    <form id="login">
+      <label for="email">Email</label>
+      <input id="email" name="email" type="email" autocomplete="username" />
+      <label for="password">Password</label>
+      <input id="password" name="password" type="password" autocomplete="current-password" />
+      <p id="err" class="error" role="alert"></p>
+      <p><button class="primary" type="submit">Sign in</button></p>
+    </form>
+    <script>
+      // Records only *that* a password was entered, never the value.
+      document.getElementById('password').addEventListener('input', () => {
+        localStorage.setItem('login:passwordTyped', '1');
+      });
+      document.getElementById('login').addEventListener('submit', (e) => {
+        e.preventDefault();
+        localStorage.setItem('login:submitted', '1');
+        document.getElementById('err').textContent = 'Incorrect email or password.';
+      });
+    </script>
+  </body>
+</html>
