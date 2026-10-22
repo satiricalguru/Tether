@@ -460,6 +460,35 @@ describe('runAgent with the page engine', () => {
     expect(textWindow('short', { y: 0, height: 0, viewport: 0 }, 200)).toBe('short');
   });
 
+  it('sends less of the page and retries when a step overflows the window', async () => {
+    const page: FakePage = {
+      url: 'https://a.test/',
+      title: 'A',
+      elements: [el('1', 'button', 'Go')],
+      text: 'x'.repeat(20_000),
+    };
+    const { input, requests } = setup(page, [toolCall('done', { summary: 'ok' })]);
+    input.contentBudget = 2000;
+    const answer = input.complete;
+    let calls = 0;
+    input.complete = (req, signal) => {
+      calls += 1;
+      if (calls === 1) {
+        requests.push(req);
+        return Promise.reject(
+          new Error(
+            'HTTP 400: request (4175 tokens) exceeds the available context size (4096 tokens)',
+          ),
+        );
+      }
+      return answer(req, signal);
+    };
+    const r = await runAgent(input);
+    expect(r.status).toBe('done');
+    const sizes = requests.map((q) => JSON.stringify(q.messages).length);
+    expect(sizes[1]).toBeLessThan(sizes[0]! * 0.8);
+  });
+
   it('holds the time limit during a slow model call', async () => {
     const page: FakePage = { url: 'https://a.test/', title: 'A', elements: [] };
     const { input } = setup(page, []);

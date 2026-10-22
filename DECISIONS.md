@@ -563,3 +563,16 @@ can't finish in 4 minutes, and nine runs ran out of time mid-task. Eval
 runs now get 6 minutes and 15 steps. That's a property of the hardware,
 not a tuning of the harness. The agent's default for users stays 5
 minutes, and it's adjustable in settings.
+
+### ADR-055 A step that overflows the window is retried with less page
+
+Even with ADR-051's budgets, one run overflowed a 4K window (4,175 tokens),
+because the progress notes grow and the estimate runs low against real
+tokenizers. Two changes: budgets now hand out 75% of the estimated room,
+not 85%. And when a server reports that a prompt exceeds its context, the
+step is retried with both page budgets cut to 60%, at most twice a run.
+The panel shows a warning when that happens.
+
+The `checkout-deny` eval task now declines only "Place order". It used to
+decline every confirmation, including "Continue to review", which is a
+form submit too.

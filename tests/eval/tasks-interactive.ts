@@ -142,7 +142,9 @@ export const INTERACTIVE_TASKS: InteractiveTask[] = [
     id: 'checkout-deny',
     start: '/apps/checkout/cart.html',
     task: CHECKOUT_TASK,
-    confirm: 'deny',
+    // Continuing to the next checkout step is a form submit too; only
+    // placing the order is refused.
+    confirm: /place order/i,
     check: (o) =>
       all(
         confirmed(o, /place order/i, false),

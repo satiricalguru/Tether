@@ -96,7 +96,7 @@ const DIGEST_CHARS = 240;
  * page text. Everything else a step sends is fixed or small: the system
  * prompt and tool schemas (`fixedTokens`), the task and progress notes, and
  * room for the reply. Our token estimate runs low against real tokenizers,
- * so only 85% of the remainder is handed out.
+ * so only 75% of the remainder is handed out.
  */
 export function agentBudgets(
   window: number,
@@ -104,11 +104,19 @@ export function agentBudgets(
 ): { elementBudget: number; contentBudget: number } {
   const PROGRESS_AND_TASK = 600;
   const REPLY = 512;
-  const avail = Math.max(0, (window - fixedTokens - PROGRESS_AND_TASK - REPLY) * 0.85);
+  const avail = Math.max(0, (window - fixedTokens - PROGRESS_AND_TASK - REPLY) * 0.75);
   return {
     elementBudget: Math.round(Math.max(300, Math.min(4000, avail * 0.6))),
     contentBudget: Math.round(Math.max(200, Math.min(2000, avail * 0.4))),
   };
+}
+
+/** A server's "prompt too long for the context window" error, in the wordings local servers use. */
+export function isContextOverflow(err: unknown): boolean {
+  const msg = err instanceof Error ? err.message : String(err);
+  return /exceeds? the (available )?context|context (length|size|window) (exceeded|is too small)|maximum context length|too many tokens|prompt is too long|n_ctx/i.test(
+    msg,
+  );
 }
 
 export const LOOP_WARN = 3;
@@ -316,6 +324,10 @@ export async function runAgent(input: RunInput): Promise<RunResult> {
   let n = 0;
   let lastId: string | undefined;
   let cached: Observed | undefined;
+  // Page budgets for this run; shrunk if the server says a step didn't fit.
+  const budgets = { contentBudget: input.contentBudget, elementBudget: input.elementBudget };
+  let shrinks = 0;
+  const view = () => ({ ...input, ...budgets });
   const result = (
     status: RunStatus,
     summary: string,
@@ -342,7 +354,7 @@ export async function runAgent(input: RunInput): Promise<RunResult> {
       if (now() > deadline) return result('failed', `Ran out of time (${prefs.maxMinutes} min).`);
       n += 1;
       emit({ type: 'thinking', n });
-      const obs = cached ?? (await observe(ctx, input, lastId));
+      const obs = cached ?? (await observe(ctx, view(), lastId));
       cached = undefined;
       if (pendingDigest && obs.digest && log.length > 0) {
         const last = log.length - 1;
@@ -396,6 +408,20 @@ export async function runAgent(input: RunInput): Promise<RunResult> {
           emit({ type: 'tier', tier, reason: 'the model rejected native tool calls' });
           n -= 1;
           cached = obs;
+          continue;
+        }
+        // Our token estimate is only an estimate: if the step didn't fit the
+        // window, send less of the page and try the step again (twice at most).
+        if (shrinks < 2 && isContextOverflow(err)) {
+          shrinks += 1;
+          budgets.contentBudget = Math.max(150, Math.round((budgets.contentBudget ?? 2500) * 0.6));
+          budgets.elementBudget = Math.max(250, Math.round((budgets.elementBudget ?? 4000) * 0.6));
+          emit({
+            type: 'warning',
+            message: 'The page didn’t fit the model’s context window; sending less of it.',
+          });
+          n -= 1;
+          cached = undefined;
           continue;
         }
         throw err;
@@ -532,7 +558,7 @@ export async function runAgent(input: RunInput): Promise<RunResult> {
         call.name !== 'extract' &&
         call.name !== 'waitFor'
       ) {
-        cached = await observe(ctx, input, target?.id);
+        cached = await observe(ctx, view(), target?.id);
         afterHash = cached.snap?.hash;
         if (
           cached.url === obs.url &&
