@@ -1,13 +1,21 @@
 import { browser } from 'wxt/browser';
 import type { Completion, CompleteFn } from '@/agent/harness';
-import { runAgent, type AgentEvent, type ConfirmRequest, type RunResult } from '@/agent/loop';
+import {
+  agentBudgets,
+  runAgent,
+  type AgentEvent,
+  type ConfirmRequest,
+  type RunResult,
+} from '@/agent/loop';
 import { browserTabs, type AgentContext, type PageApi } from '@/agent/tools/execute';
 import type { ActResult, PageAction } from '@/agent/page/types';
-import { COMPUTER_TOOLS } from '@/agent/tools/specs';
+import { computerTools } from '@/agent/tools/specs';
 import { dbTraceSink } from '@/agent/trace';
 import { sendToTab } from '@/lib/messaging';
 import { type StreamHandler, directContext } from '@/lib/ports';
+import { estimateTokens } from '@/context/tokens';
 import { getSettings } from '@/lib/settings';
+import { agentSystemPrompt } from '@/prompting/system';
 import type { Capabilities } from '@/providers/types';
 import type { ChatStreamRequest } from './chat';
 import { ensureBridge, extractTab } from './context';
@@ -86,13 +94,23 @@ function pageApi(backend: 'scripting' | 'debugger', onFallback: (why: string) =>
       await ensureBridge(tabId);
       if (useDebugger && !(await debuggerAvailable())) {
         useDebugger = false;
-        onFallback('Trusted input is on but the debugger permission isn’t granted; using scripted input.');
+        onFallback(
+          'Trusted input is on but the debugger permission isn’t granted; using scripted input.',
+        );
       }
-      const trusted = useDebugger && (action.kind === 'click' || action.kind === 'rightClick' || action.kind === 'hover' || action.kind === 'type' || action.kind === 'pressKey');
+      const trusted =
+        useDebugger &&
+        (action.kind === 'click' ||
+          action.kind === 'rightClick' ||
+          action.kind === 'hover' ||
+          action.kind === 'type' ||
+          action.kind === 'pressKey');
       if (!trusted) return viaContent(tabId, action);
       if (action.kind === 'pressKey') {
         if (action.id) await viaContent(tabId, { kind: 'hover', id: action.id });
-        return (await cdpKey(tabId, action.key)) ? { ok: true, detail: `pressed ${action.key}` } : viaContent(tabId, action);
+        return (await cdpKey(tabId, action.key))
+          ? { ok: true, detail: `pressed ${action.key}` }
+          : viaContent(tabId, action);
       }
       const point = await sendToTab(tabId, 'content:point', { id: action.id }, 0);
       if (!point) return { ok: false, error: `Element [${action.id}] is no longer on the page.` };
@@ -100,7 +118,10 @@ function pageApi(backend: 'scripting' | 'debugger', onFallback: (why: string) =>
         await cdpMouse(tabId, point, 'click');
         await cdpInsertText(tabId, action.text);
         if (action.submit) await cdpKey(tabId, 'Enter');
-        return { ok: true, detail: `typed ${action.text.length} chars${action.submit ? ' and pressed Enter' : ''} (trusted input)` };
+        return {
+          ok: true,
+          detail: `typed ${action.text.length} chars${action.submit ? ' and pressed Enter' : ''} (trusted input)`,
+        };
       }
       await cdpMouse(tabId, point, action.kind);
       return { ok: true, detail: `${action.kind} (trusted input)` };
@@ -118,10 +139,27 @@ function pageApi(backend: 'scripting' | 'debugger', onFallback: (why: string) =>
 export function createAgentStream(deps: {
   chat: StreamHandler<'chat'>;
   capabilities: (instanceId: string, model: string) => Promise<Capabilities>;
+  /** The window the server is running the model with, if it's loaded. */
+  runtimeContext?: (instanceId: string, model: string) => Promise<number | undefined>;
 }): StreamHandler<'agent'> {
   return async function* agent(req, { signal: portSignal, onInput }) {
     const settings = await getSettings();
     const caps = await deps.capabilities(req.instanceId, req.model);
+    // What we ask for, else what the server runs, else 4096: Ollama and LM
+    // Studio load models with a 4K window by default, whatever the model's max.
+    const running = settings.generation.numCtx
+      ? undefined
+      : await deps.runtimeContext?.(req.instanceId, req.model).catch(() => undefined);
+    const window =
+      settings.generation.numCtx || (running ?? Math.min(caps.contextLength || 4096, 4096));
+    const tools = computerTools(window);
+    // The tier isn't known until the loop starts; budget for the largest
+    // prompt: native (system prompt + tool schemas) or text (tools inline).
+    const fixed = Math.max(
+      estimateTokens(agentSystemPrompt('native', tools)) + estimateTokens(JSON.stringify(tools)),
+      estimateTokens(agentSystemPrompt('text', tools)),
+    );
+    const budgets = agentBudgets(window, fixed);
     const complete = completer(deps.chat);
     const events: AgentEvent[] = [];
     let wake: (() => void) | undefined;
@@ -148,9 +186,13 @@ export function createAgentStream(deps: {
     const confirm = (request: ConfirmRequest) =>
       new Promise<boolean>((resolve) => {
         waiting.set(request.id, resolve);
-        signal.addEventListener('abort', () => {
-          resolve(false);
-        }, { once: true });
+        signal.addEventListener(
+          'abort',
+          () => {
+            resolve(false);
+          },
+          { once: true },
+        );
       });
 
     const ctx: AgentContext = {
@@ -192,15 +234,14 @@ export function createAgentStream(deps: {
       runId: req.runId,
       task: req.task,
       model: { instanceId: req.instanceId, model: req.model, caps },
-      tools: COMPUTER_TOOLS,
+      tools,
       prefs: settings.agent,
       ctx,
       complete,
       trace: dbTraceSink(),
       emit,
       confirm,
-      contentBudget: Math.max(600, Math.min(2000, Math.floor((settings.generation.numCtx || caps.contextLength) / 5))),
-      elementBudget: Math.max(1000, Math.min(4000, Math.floor((settings.generation.numCtx || caps.contextLength) / 3))),
+      ...budgets,
     }).finally(() => {
       clearInterval(followTab);
       unsubscribe();

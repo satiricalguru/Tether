@@ -22,7 +22,7 @@ export type Verdict =
   | { decision: 'refuse'; reason: string };
 
 const IRREVERSIBLE_WORDS =
-  /\b(buy|purchase|pay|place order|order now|delete|remove|erase|send|submit|confirm|transfer|unsubscribe|cancel (subscription|account|order)|post|publish|tweet|reply|donate|subscribe|book now|reserve|sign (up|out)|log ?out|deactivate|close account|empty trash)\b/i;
+  /\b(buy|purchase|pay|place order|order now|delete|remove (account|user|member)|erase|send|submit|confirm|transfer|unsubscribe|cancel (subscription|account|order)|post|publish|tweet|reply|donate|subscribe|book now|reserve|sign (up|out)|log ?out|deactivate|close account|empty trash)\b/i;
 
 /** Field purposes the agent never types into. */
 const CREDENTIAL_AUTOCOMPLETE =
@@ -47,7 +47,8 @@ export function looksSecret(text: string): boolean {
 }
 
 /** A string or number argument as text; anything else as ''. */
-const scalar = (v: unknown): string => (typeof v === 'string' || typeof v === 'number' ? String(v) : '');
+const scalar = (v: unknown): string =>
+  typeof v === 'string' || typeof v === 'number' ? String(v) : '';
 
 function label(el: SnapshotElement): string {
   return `${el.role} "${el.name || el.id}"${el.hint ? ` (${el.hint})` : ''}`;
@@ -77,15 +78,23 @@ export function classify(call: ToolCall, target: SnapshotElement | undefined): V
       if (isCredentialField(target)) {
         return {
           decision: 'refuse',
-          reason: 'Tether never fills in passwords, one-time codes or payment details. Ask the user to do it (askUser).',
+          reason:
+            'Tether never fills in passwords, one-time codes or payment details. Ask the user to do it (askUser).',
         };
       }
       const text = scalar(a.text) || scalar(a.value);
       if (looksSecret(text)) {
-        return { decision: 'refuse', reason: 'That looks like a card number, SSN or secret key; the agent never types those.' };
+        return {
+          decision: 'refuse',
+          reason: 'That looks like a card number, SSN or secret key; the agent never types those.',
+        };
       }
       if (call.name === 'type' && a.submit === true && target?.inForm) {
-        return { decision: 'confirm', tier: 'irreversible', reason: `Submit the form after typing into ${label(target)}` };
+        return {
+          decision: 'confirm',
+          tier: 'irreversible',
+          reason: `Submit the form after typing into ${label(target)}`,
+        };
       }
       return { decision: 'allow', tier: 'write' };
     }
@@ -95,15 +104,29 @@ export function classify(call: ToolCall, target: SnapshotElement | undefined): V
     case 'pressKey': {
       const key = scalar(a.key);
       if (/^enter$/i.test(key) && target?.inForm) {
-        return { decision: 'confirm', tier: 'irreversible', reason: `Press Enter in ${label(target)}, which submits its form` };
+        return {
+          decision: 'confirm',
+          tier: 'irreversible',
+          reason: `Press Enter in ${label(target)}, which submits its form`,
+        };
       }
       return { decision: 'allow', tier: 'write' };
     }
     case 'click':
     case 'rightClick': {
       if (!target) return { decision: 'allow', tier: 'navigate' };
-      if (target.download) return { decision: 'confirm', tier: 'irreversible', reason: `Download from ${label(target)}` };
-      if (target.submits) return { decision: 'confirm', tier: 'irreversible', reason: `Submit a form with ${label(target)}` };
+      if (target.download)
+        return {
+          decision: 'confirm',
+          tier: 'irreversible',
+          reason: `Download from ${label(target)}`,
+        };
+      if (target.submits)
+        return {
+          decision: 'confirm',
+          tier: 'irreversible',
+          reason: `Submit a form with ${label(target)}`,
+        };
       if (IRREVERSIBLE_WORDS.test(target.name)) {
         return { decision: 'confirm', tier: 'irreversible', reason: `Click ${label(target)}` };
       }
@@ -127,7 +150,12 @@ export function carriesData(url: string, fromHost: string, seen: string[]): stri
   } catch {
     return null;
   }
-  if (!fromHost || u.hostname === fromHost || u.hostname.endsWith(`.${fromHost}`) || fromHost.endsWith(`.${u.hostname}`)) {
+  if (
+    !fromHost ||
+    u.hostname === fromHost ||
+    u.hostname.endsWith(`.${fromHost}`) ||
+    fromHost.endsWith(`.${u.hostname}`)
+  ) {
     return null;
   }
   let raw = `${u.pathname} ${u.search} ${u.hash}`.replace(/\+/g, ' ');
@@ -138,7 +166,11 @@ export function carriesData(url: string, fromHost: string, seen: string[]): stri
   }
   // Same normalization on both sides: lowercase words of 4+ letters, so
   // short words and punctuation between them can't break up a match.
-  const words = (t: string) => t.toLowerCase().split(/[^\p{L}\p{N}]+/u).filter((w) => w.length >= 4);
+  const words = (t: string) =>
+    t
+      .toLowerCase()
+      .split(/[^\p{L}\p{N}]+/u)
+      .filter((w) => w.length >= 4);
   const payload = ` ${words(raw).join(' ')} `;
   if (payload.length < 30) return null;
   for (const s of seen) {

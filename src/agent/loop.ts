@@ -91,6 +91,26 @@ const NAVIGATING = new Set([
   'click',
 ]);
 const DIGEST_CHARS = 240;
+/**
+ * Split what's left of the model's window between the element list and the
+ * page text. Everything else a step sends is fixed or small: the system
+ * prompt and tool schemas (`fixedTokens`), the task and progress notes, and
+ * room for the reply. Our token estimate runs low against real tokenizers,
+ * so only 85% of the remainder is handed out.
+ */
+export function agentBudgets(
+  window: number,
+  fixedTokens: number,
+): { elementBudget: number; contentBudget: number } {
+  const PROGRESS_AND_TASK = 600;
+  const REPLY = 512;
+  const avail = Math.max(0, (window - fixedTokens - PROGRESS_AND_TASK - REPLY) * 0.85);
+  return {
+    elementBudget: Math.round(Math.max(300, Math.min(4000, avail * 0.6))),
+    contentBudget: Math.round(Math.max(200, Math.min(2000, avail * 0.4))),
+  };
+}
+
 export const LOOP_WARN = 3;
 export const LOOP_ABORT = 5;
 
@@ -265,6 +285,8 @@ export async function runAgent(input: RunInput): Promise<RunResult> {
   const log: string[] = [];
   const seen: { host: string; text: string }[] = [{ host: '', text: input.task }];
   const repeats = new Map<string, number>();
+  // Actions the user declined this run: a repeat is refused without asking again.
+  const declined = new Set<string>();
   let warning = '';
   let pendingDigest = false;
   let failures = 0;
@@ -418,7 +440,9 @@ export async function runAgent(input: RunInput): Promise<RunResult> {
         stepOutcome = 'blocked';
       } else {
         let approved = true;
-        if (verdict.decision === 'confirm') {
+        if (verdict.decision === 'confirm' && declined.has(key)) {
+          approved = false;
+        } else if (verdict.decision === 'confirm') {
           const request: ConfirmRequest = {
             id: `${input.runId}:${n}`,
             step: n,
@@ -444,6 +468,7 @@ export async function runAgent(input: RunInput): Promise<RunResult> {
           // Time spent waiting for the user doesn't count against the run.
           deadline += now() - waitStart;
           emit({ type: 'confirmed', id: request.id, approved });
+          if (!approved) declined.add(key);
         }
         if (!approved) {
           outcome = {

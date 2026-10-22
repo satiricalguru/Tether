@@ -16,11 +16,12 @@ Every action is classified **before** it runs (`src/agent/tiers.ts`):
 | **Read** | read the page, scroll, extract data, wait for content, hover | Runs automatically. |
 | **Navigate** | open URLs, back/forward/reload, open/switch/close tabs, follow links, ordinary buttons | Runs automatically, inside the domain policy (§2). |
 | **Write** | type, select, tick a checkbox, set a value, press a key | Runs automatically, except in credential fields (§3). |
-| **Irreversible** | submitting a form (submit buttons, "type and submit", Enter in a form field); buttons named buy, purchase, pay, place order, delete, remove, send, submit, confirm, transfer, (un)subscribe, post, publish, reply, donate, book, reserve, sign up/out, deactivate, close account; downloads | **Stops and asks you.** The panel shows the exact element, its label and context, and the page. Nothing happens until you choose **Allow once** or **Don't allow**. |
+| **Irreversible** | submitting a form (submit buttons, "type and submit", Enter in a form field); buttons named buy, purchase, pay, place order, delete, remove account/user/member, send, submit, confirm, transfer, (un)subscribe, post, publish, reply, donate, book, reserve, sign up/out, deactivate, close account; downloads | **Stops and asks you.** The panel shows the exact element, its label and context, and the page. Nothing happens until you choose **Allow once** or **Don't allow**. |
 
 Approval is per action. Allowing one "Place order" doesn't allow the next.
 If you don't allow an action, the agent is told so and asked to finish or
-check with you; it isn't allowed to retry the same thing. Time spent waiting
+check with you. If it tries the same thing anyway, it's refused without
+asking you again. Time spent waiting
 for your answer doesn't count against the run's time limit.
 
 ## 2. Where the agent may go
@@ -102,6 +103,8 @@ trusted input. All the rules above apply unchanged.
 
 ## 8. Known limits
 
+- Removing an item from a cart or list isn't treated as irreversible,
+  because it's easy to undo. Deleting is.
 - The irreversible-action list is pattern-based. A button labelled
   ambiguously ("Continue") that actually submits a payment is caught only if
   it is a form submit. When in doubt, keep sensitive sites on the blocked

@@ -100,11 +100,21 @@ export function specByName(tools: ToolSpec[], name: string): ToolSpec | undefine
   return tools.find((t) => t.name === name);
 }
 
-const ID = { type: 'string' as const, description: 'Element id from ELEMENTS, e.g. 12 (or 3.12 inside a frame)' };
+const ID = { type: 'string' as const, description: 'Element id, e.g. 12 or 3.12' };
 
 /** Phase 5: the full action space (spec §6.2), except screenshot (vision tier, Phase 7). */
 export const COMPUTER_TOOLS: ToolSpec[] = [
-  ...READ_ONLY_TOOLS.filter((t) => ['navigate', 'back', 'newTab', 'switchTab'].includes(t.name)),
+  {
+    name: 'navigate',
+    description:
+      'Open a URL in the current tab. To follow a link, click it or use the address shown after →.',
+    parameters: {
+      type: 'object',
+      properties: { url: { type: 'string', description: 'The full web address of the page' } },
+      required: ['url'],
+    },
+  },
+  ...READ_ONLY_TOOLS.filter((t) => ['back', 'newTab', 'switchTab'].includes(t.name)),
   {
     name: 'forward',
     description: 'Go forward in the current tab.',
@@ -118,7 +128,11 @@ export const COMPUTER_TOOLS: ToolSpec[] = [
   {
     name: 'closeTab',
     description: 'Close a tab by its index from TABS.',
-    parameters: { type: 'object', properties: { index: { type: 'integer', minimum: 0 } }, required: ['index'] },
+    parameters: {
+      type: 'object',
+      properties: { index: { type: 'integer', minimum: 0 } },
+      required: ['index'],
+    },
   },
   {
     name: 'click',
@@ -193,12 +207,42 @@ export const COMPUTER_TOOLS: ToolSpec[] = [
       properties: {
         direction: { type: 'string', enum: ['up', 'down'] },
         id: ID,
-        amount: { type: 'integer', minimum: 1, maximum: 10, description: 'Screens to scroll (default 1)' },
+        amount: {
+          type: 'integer',
+          minimum: 1,
+          maximum: 10,
+          description: 'Screens to scroll (default 1)',
+        },
       },
     },
   },
   ...READ_ONLY_TOOLS.filter((t) => ['waitFor', 'extract', 'askUser', 'done'].includes(t.name)),
 ];
 
+/** Left out of small windows: rarely needed, and every schema costs prompt space. */
+const EXTRA_TOOLS = new Set([
+  'newTab',
+  'switchTab',
+  'forward',
+  'reload',
+  'closeTab',
+  'rightClick',
+  'hover',
+]);
+
+/** The computer-use tool set for a model window: the core 14 up to 8K tokens, all 21 above. */
+export function computerTools(window: number): ToolSpec[] {
+  return window > 8192 ? COMPUTER_TOOLS : COMPUTER_TOOLS.filter((t) => !EXTRA_TOOLS.has(t.name));
+}
+
 /** Tools whose `id` argument must exist in the current snapshot. */
-export const ELEMENT_TOOLS = new Set(['click', 'rightClick', 'hover', 'type', 'clear', 'setValue', 'select', 'check']);
+export const ELEMENT_TOOLS = new Set([
+  'click',
+  'rightClick',
+  'hover',
+  'type',
+  'clear',
+  'setValue',
+  'select',
+  'check',
+]);

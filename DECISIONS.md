@@ -421,3 +421,112 @@ redacted, ready for Phase 5's trace viewer.
 ### ADR-041 Dependencies added in Phase 4
 
 None.
+
+## Phase 5 — Computer use
+
+### ADR-042 Actions are classified by the harness, never by the model
+
+`src/agent/tiers.ts` puts every call in one of four tiers before it runs:
+read, navigate, write or irreversible. A fifth outcome, refuse, covers
+credential fields and secret-looking text. Irreversible means a form
+submit, a download, or an element whose name matches a fixed word list
+(buy, pay, place order, delete, send, submit, publish …). "Checkout" and
+"share" are deliberately left out, because they usually just open the next
+page. The model never sees or sets the tier. The full model is in
+[docs/safety.md](docs/safety.md).
+
+### ADR-043 Confirmations travel over the run's own port
+
+An irreversible action pauses the loop on a promise. The background sends a
+`confirm` event down the agent stream, and the panel answers with the new
+client→server `input` message (`{type:'confirm', id, approved}`). No second
+channel, no polling. Time spent waiting is added back to the run's
+deadline. With no panel listening (no confirmer), the action is refused,
+never silently allowed. A denial isn't a failure: the model is told the
+user declined and must not retry it.
+
+### ADR-044 Credentials are refused twice
+
+The background guard refuses `type`/`setValue` into password,
+one-time-code and `cc-*` fields, fields labelled like PIN/CVV/IBAN/SSN, and
+text that looks like a card number, SSN or API key in any field. The page
+engine checks the live element again before acting, in case the snapshot
+was stale. A login page therefore ends a run in `needs-user`.
+
+### ADR-045 Navigation is checked for exfiltration
+
+Before `navigate`/`newTab`, `carriesData` compares the URL's path, query
+and fragment with text the agent saw in the task or on pages from other
+hosts. Both sides are normalised to words of four or more letters, and a
+shared run of six words refuses the navigation. This catches the classic
+injection "open evil.example/?q=<what you read>" without blocking ordinary
+search URLs. Paraphrased or encoded leaks aren't caught (documented
+limit).
+
+### ADR-046 No-op and loop detection from page hashes
+
+After every action, a fresh snapshot is taken and cached as the next step's
+observation, so there's no extra cost. If the URL and the snapshot hash are
+unchanged, the step is marked `noop` and the model is told to try a
+different element. The same action on the same element (by role and name,
+not id, because ids change) warns the model at 3 and aborts the run at 5.
+
+### ADR-047 One critique call before accepting "done"
+
+Small models often claim success early. When `agent.critique` is on (the
+default), the first `done` triggers one JSON-schema call that checks the
+claim against the final page: `{complete, reason}`. If it says incomplete,
+the run continues with the reason as feedback. A second `done` is
+accepted. A critique that errors never blocks finishing.
+
+### ADR-048 Scripted events by default, CDP as an opt-in backend
+
+Content-script events work on almost every site and need no extra
+permission. The `debugger` permission is optional and requested in the
+click handler that enables it. When it's enabled, click, hover, type and
+key events go through `Input.dispatch*` at the element's centre point.
+Everything else, and any failure, falls back to scripting. Chrome's own
+"is being debugged" bar is the user-visible signal.
+
+### ADR-049 The kill switch lives in the page, in a closed shadow root
+
+Each controlled tab shows a banner. Its Stop button and Esc on the page end
+the run via `bg:agent:stop`. Both respond only to `isTrusted` events, so a
+page script can't press them. The page can't style or remove the closed
+shadow root's contents either. The banner follows the active tab.
+
+### ADR-050 Interactive evals check app state, not words
+
+Phase 5 adds 13 tasks across 12 fixture apps (search filters, a
+three-step checkout with approve and deny variants, login and CAPTCHA
+hand-offs, infinite scroll, a shadow-DOM modal, same-origin iframe forms,
+a paged table, an injection that asks for an account deletion, a todo app,
+custom controls and a cookie wall). Each check reads what the app wrote to
+storage, the final URL and the confirmations the harness answered. The
+harness answers confirmations by clicking the real panel buttons.
+
+### ADR-051 Agent budgets come from the window the model really has
+
+Ollama and LM Studio load a model with a 4K window by default, whatever its
+maximum. Budgeting from the maximum overflowed it: a four-scroll run hit
+"request (4503 tokens) exceeds the available context size (4096)". The
+window is now, in order: the configured `num_ctx`, the window the server
+reports for the loaded model, or 4096. The fixed cost of a step is measured
+first: the system prompt plus tool schemas, or the text-tier prompt,
+whichever is larger. Room for the task, progress notes (600 tokens) and the
+reply (512) is also reserved. 85% of the remainder is split 60/40 between
+the element list and the page text.
+
+At 8K or less the agent gets the 14 core tools. It drops newTab,
+switchTab, forward, reload, closeTab, rightClick and hover. Every schema
+costs prompt space, and small tasks rarely need these seven.
+
+### ADR-052 A decline is remembered; removing a cart item isn't irreversible
+
+The first eval runs showed two problems. In one, the model retried a
+declined click four times, and each retry asked the user again. Declined
+actions are now remembered for the run, keyed by page, action and element
+like loop detection, and a repeat is refused without asking. In the other,
+"Remove <item>" on a cart counted as irreversible, though it's easy to
+undo. The word list now gates only "remove account/user/member"; "delete"
+still counts.

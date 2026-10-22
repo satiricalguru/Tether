@@ -43,7 +43,9 @@ export default defineBackground({
       ...contextHandlers(),
       // Stop from the page banner / Esc: by run id, else whatever run controls that tab.
       'bg:agent:stop': ({ runId }, sender) => ({
-        stopped: (runId ? stopRun(runId) : false) || (sender.tab?.id !== undefined && stopRunInTab(sender.tab.id)),
+        stopped:
+          (runId ? stopRun(runId) : false) ||
+          (sender.tab?.id !== undefined && stopRunInTab(sender.tab.id)),
       }),
       'bg:ping': () => ({
         pong: true,
@@ -75,6 +77,8 @@ export default defineBackground({
         agent: createAgentStream({
           chat,
           capabilities: (id, model) => registry.capabilities(id, model),
+          runtimeContext: async (id, model) =>
+            (await registry.provider(id)).runtimeContext?.(model),
         }),
         quick: createQuickStream({
           chat,
