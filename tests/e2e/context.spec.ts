@@ -168,7 +168,8 @@ test.describe('page context', () => {
       await configureProviders(serviceWorker, [
         { instanceId: 'ollama', kind: 'ollama', label: 'Ollama', baseUrl: mock.url },
       ]);
-      // A tiny window forces truncation of the article.
+      // A tiny window forces truncation of the article. Retrieval off: this
+      // covers cutting from the top (rag.spec.ts covers retrieval).
       await serviceWorker.evaluate(async () => {
         const key = 'tether:settings';
         const s = (await chrome.storage.local.get(key))[key] as Record<
@@ -176,7 +177,11 @@ test.describe('page context', () => {
           Record<string, unknown>
         >;
         await chrome.storage.local.set({
-          [key]: { ...s, generation: { ...s.generation, numCtx: 900, maxTokens: 200 } },
+          [key]: {
+            ...s,
+            generation: { ...s.generation, numCtx: 900, maxTokens: 200 },
+            rag: { ...s.rag, enabled: false },
+          },
         });
       });
       const site = await context.newPage();

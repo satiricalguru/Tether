@@ -49,7 +49,14 @@ export function AttachmentChips({
             <Icon className="size-3 shrink-0" />
             <span className="truncate">{a.title}</span>
             <span className="shrink-0 tabular-nums">· {formatTokens(a.tokens)}</span>
-            {a.originalTokens && <span className="shrink-0">(trimmed)</span>}
+            {a.originalTokens &&
+              (a.retrieval && 'kept' in a.retrieval ? (
+                <span className="shrink-0" data-testid="msg-attachment-retrieval">
+                  (relevant parts: {a.retrieval.kept} of {a.retrieval.total})
+                </span>
+              ) : (
+                <span className="shrink-0">(trimmed)</span>
+              ))}
             {warn && (
               <AlertTriangle className="size-3 shrink-0" aria-label="Possible prompt injection" />
             )}

@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Write a message | Fixture mail</title>
+    <style>
+      body {
+        font-family: system-ui, sans-serif;
+        max-width: 40rem;
+        margin: 2rem auto;
+      }
+      textarea,
+      input,
+      [contenteditable] {
+        display: block;
+        width: 100%;
+        margin: 0.25rem 0 1rem;
+        padding: 0.4rem;
+        border: 1px solid #999;
+        font: inherit;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>New message</h1>
+    <label for="subject">Subject (controlled, like a React input)</label>
+    <input id="subject" type="text" value="lunch tmrw?" />
+    <label for="note">Message</label>
+    <textarea id="note" rows="4">hi can u send me the report by friday thx</textarea>
+    <label id="bio-label">Bio</label>
+    <div id="bio" contenteditable="true" aria-labelledby="bio-label">i like hiking and maps</div>
+    <label for="pw">Password</label>
+    <input id="pw" type="password" />
+    <p id="log"></p>
+    <script>
+      // A controlled input: state follows input events, and anything that
+      // changes the DOM value without one is reverted on the next render.
+      const subject = document.getElementById('subject');
+      let state = subject.value;
+      subject.addEventListener('input', () => {
+        state = subject.value;
+      });
+      setInterval(() => {
+        if (subject.value !== state) subject.value = state;
+      }, 50);
+
+      // What the page itself sees: input events and Cmd/Ctrl+K presses.
+      const counts = { input: 0, k: 0, kPrevented: 0 };
+      const log = () => {
+        document.getElementById('log').dataset.counts = JSON.stringify(counts);
+      };
+      document.addEventListener('input', () => {
+        counts.input += 1;
+        log();
+      });
+      document.addEventListener('keydown', (e) => {
+        if (e.key.toLowerCase() === 'k' && (e.metaKey || e.ctrlKey)) {
+          counts.k += 1;
+          if (e.defaultPrevented) counts.kPrevented += 1;
+          log();
+        }
+      });
+      log();
+    </script>
+  </body>
+</html>

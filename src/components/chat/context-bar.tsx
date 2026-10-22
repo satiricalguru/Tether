@@ -1,4 +1,5 @@
 import { FileText, FileUp, Globe, Layers, Loader2, Lock, TextSelect, X } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
 import { useRef, type ComponentType } from 'react';
 import { browser } from 'wxt/browser';
 import {
@@ -13,6 +14,7 @@ import {
 import type { ContextBudget } from '@/hooks/use-context-budget';
 import { cn } from '@/lib/cn';
 import { formatTokens } from '@/lib/format';
+import { sendMessage } from '@/lib/messaging';
 import { attachmentWarning } from './attachment-chips';
 
 const LABEL: Record<ChipKind, string> = {
@@ -104,6 +106,33 @@ function Chip({
   );
 }
 
+function RagNote({ status }: { status: { enabled: boolean; model?: string } }) {
+  const mode = !status.enabled ? 'off' : status.model ? 'retrieval' : 'no-model';
+  return (
+    <p className="text-[11px] text-muted" data-testid="rag-note" data-mode={mode}>
+      {mode === 'retrieval' && (
+        <>
+          Too long to send whole: Tether will send the parts most relevant to your question (found
+          with {status.model}).
+        </>
+      )}
+      {mode === 'no-model' && (
+        <>
+          Too long to send whole, so the start will be sent. For the parts relevant to your question
+          instead, install an embedding model:{' '}
+          <code className="rounded bg-surface-2 px-1">ollama pull nomic-embed-text</code>
+        </>
+      )}
+      {mode === 'off' && (
+        <>
+          Too long to send whole, so the start will be sent (finding relevant parts is off in
+          Settings → Pages).
+        </>
+      )}
+    </p>
+  );
+}
+
 /**
  * Context chips above the composer, with the live budget. Errors explain
  * themselves and offer the permission that would fix them.
@@ -111,9 +140,12 @@ function Chip({
 export function ContextBar({
   budget,
   pdfAvailable,
+  instanceId,
 }: {
   budget: ContextBudget | null;
   pdfAvailable: boolean;
+  /** Provider the message will go to: where retrieval looks for an embedding model. */
+  instanceId?: string | undefined;
 }) {
   const chips = useContextDraft((s) => s.chips);
   const set = useContextDraft((s) => s.set);
@@ -125,6 +157,16 @@ export function ContextBar({
   };
 
   const blocked = Object.values(chips).find((c) => c.status === 'error');
+  // Page/tab/PDF text cut to fit: say whether the relevant parts will be found or the start sent.
+  const longContent = !!budget?.fitted.some(
+    (a) => a.originalTokens !== undefined && a.kind !== 'selection',
+  );
+  const rag = useQuery({
+    queryKey: ['rag', 'status', instanceId],
+    queryFn: () => sendMessage('bg:rag:status', { instanceId: instanceId ?? '' }),
+    enabled: longContent && !!instanceId,
+    staleTime: 30_000,
+  });
   const level =
     !budget || budget.attached === 0
       ? 'none'
@@ -211,6 +253,7 @@ export function ContextBar({
             )}
         </div>
       )}
+      {longContent && rag.data && <RagNote status={rag.data} />}
       {chips.tabs?.status === 'ready' && (chips.tabs.skipped?.length ?? 0) > 0 && (
         <p className="text-[11px] text-muted" data-testid="tabs-skipped">
           {chips.tabs.skipped?.length} tab{chips.tabs.skipped?.length === 1 ? '' : 's'} skipped:{' '}

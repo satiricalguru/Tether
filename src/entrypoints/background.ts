@@ -2,9 +2,12 @@ import { browser } from 'wxt/browser';
 import { defineBackground } from 'wxt/utils/define-background';
 import { createAgentStream, stopRun, stopRunInTab } from '@/background/agent';
 import { createChatStream } from '@/background/chat';
+import { createComposeStream } from '@/background/compose';
 import {
+  COMPOSE_MENU_ID,
   contextHandlers,
   createQuickStream,
+  openComposeFromMenu,
   openPanelNow,
   pendingFromMenu,
   putPending,
@@ -13,6 +16,7 @@ import {
 } from '@/background/context';
 import { echoStream } from '@/background/echo';
 import { createBackgroundRegistry, providerHandlers, runDiscovery } from '@/background/providers';
+import { ragHandlers } from '@/background/rag';
 import { KEEPALIVE_ALARM, onKeepaliveAlarm, setKeepalive } from '@/lib/keepalive';
 import { createLogger } from '@/lib/logger';
 import { registerHandlers, sendToTab } from '@/lib/messaging';
@@ -41,6 +45,7 @@ export default defineBackground({
     registerHandlers({
       ...providerHandlers(registry),
       ...contextHandlers(),
+      ...ragHandlers(registry),
       // Stop from the page banner / Esc: by run id, else whatever run controls that tab.
       'bg:agent:stop': ({ runId }, sender) => ({
         stopped:
@@ -80,6 +85,10 @@ export default defineBackground({
           runtimeContext: async (id, model) =>
             (await registry.provider(id)).runtimeContext?.(model),
         }),
+        compose: createComposeStream({
+          chat,
+          capabilities: (id, model) => registry.capabilities(id, model),
+        }),
         quick: createQuickStream({
           chat,
           capabilities: (id, model) => registry.capabilities(id, model),
@@ -99,12 +108,16 @@ export default defineBackground({
     });
 
     browser.contextMenus.onClicked.addListener((info, tab) => {
+      if (info.menuItemId === COMPOSE_MENU_ID) {
+        if (tab?.id !== undefined) void openComposeFromMenu(tab.id, info.frameId ?? 0);
+        return;
+      }
       // Open first: the user gesture doesn't survive an await.
       void openPanelNow(tab?.windowId);
       void pendingFromMenu(info, tab).then((p) => (p ? putPending(p) : undefined));
     });
 
-    // Keep the bubble's registration in step with grants and the setting.
+    // Keep the bridge's registration in step with grants and the bubble / compose settings.
     const resync = () => {
       syncRegistration().catch((err: unknown) => {
         log.warn('content script registration failed', err);
@@ -112,10 +125,11 @@ export default defineBackground({
     };
     browser.permissions.onAdded.addListener(resync);
     browser.permissions.onRemoved.addListener(resync);
-    let bubbleSetting: boolean | undefined;
+    let registered: boolean | undefined;
     watchSettings((s) => {
-      if (s.page.bubble !== bubbleSetting) {
-        bubbleSetting = s.page.bubble;
+      const want = s.page.bubble || s.page.compose;
+      if (want !== registered) {
+        registered = want;
         resync();
       }
     });

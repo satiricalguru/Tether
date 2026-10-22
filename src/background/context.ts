@@ -171,7 +171,10 @@ export function createQuickStream(deps: QuickDeps): StreamHandler<'quick'> {
 
 // ---------- context menus ----------
 
-type MenuContext = 'selection' | 'page';
+type MenuContext = 'selection' | 'page' | 'editable';
+
+/** Opens inline compose on the field that was right-clicked. */
+export const COMPOSE_MENU_ID = 'tether-compose';
 
 const MENU: { id: string; title: string; contexts: [MenuContext] }[] = [
   { id: 'tether-sel', title: 'Tether', contexts: ['selection'] },
@@ -181,6 +184,7 @@ const MENU: { id: string; title: string; contexts: [MenuContext] }[] = [
   { id: 'tether-sel:improve', title: 'Improve writing', contexts: ['selection'] },
   { id: 'tether-sel:ask', title: 'Ask about selection…', contexts: ['selection'] },
   { id: 'tether-page', title: 'Ask Tether about this page', contexts: ['page'] },
+  { id: COMPOSE_MENU_ID, title: 'Compose with Tether', contexts: ['editable'] },
 ];
 
 export async function setupContextMenus(): Promise<void> {
@@ -193,6 +197,27 @@ export async function setupContextMenus(): Promise<void> {
       contexts: item.contexts,
       ...(parentId ? { parentId } : {}),
     });
+  }
+}
+
+/**
+ * "Compose with Tether" on a text field. The menu click grants activeTab, so
+ * this works on sites Tether isn't registered on. A field inside a frame
+ * gets the bridge in that frame only.
+ */
+export async function openComposeFromMenu(tabId: number, frameId: number): Promise<void> {
+  try {
+    if (frameId === 0) await ensureBridge(tabId);
+    else {
+      // The bridge keeps one live instance per frame, so injecting again is harmless.
+      await browser.scripting.executeScript({
+        target: { tabId, frameIds: [frameId] },
+        files: [CONTENT_SCRIPT],
+      });
+    }
+    await sendToTab(tabId, 'content:compose-open', undefined, frameId);
+  } catch (err) {
+    log.warn('could not open compose', err);
   }
 }
 
@@ -230,19 +255,20 @@ export async function pendingFromMenu(
   return { id: crypto.randomUUID(), kind: 'ask', prompt, attachments: [attachment], createdAt };
 }
 
-// ---------- dynamic registration (highlight bubble) ----------
+// ---------- dynamic registration (highlight bubble, inline compose) ----------
 
 /**
  * Register the bridge on every http(s) origin Tether may read, so the bubble
- * appears there without a click. With only the default localhost access,
+ * and Cmd/Ctrl+K compose work there without a click. With only the default localhost access,
  * that's just local pages; "Allow on all sites" extends it everywhere.
  */
 export async function syncRegistration(): Promise<string[]> {
   const s = await getSettings();
   const granted = (await browser.permissions.getAll()).origins ?? [];
-  const matches = s.page.bubble
-    ? granted.filter((o) => /^(https?|\*):\/\//.test(o) || o === '<all_urls>')
-    : [];
+  const matches =
+    s.page.bubble || s.page.compose
+      ? granted.filter((o) => /^(https?|\*):\/\//.test(o) || o === '<all_urls>')
+      : [];
   const existing = await browser.scripting.getRegisteredContentScripts({ ids: [REGISTERED_ID] });
   if (matches.length === 0) {
     if (existing.length) await browser.scripting.unregisterContentScripts({ ids: [REGISTERED_ID] });

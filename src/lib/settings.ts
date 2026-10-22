@@ -42,8 +42,17 @@ export interface ChatPrefs {
 export interface PagePrefs {
   /** Show the highlight-to-ask bubble on sites Tether may read. */
   bubble: boolean;
+  /** Cmd/Ctrl+K in a text field opens inline compose, on sites Tether may read. */
+  compose: boolean;
   /** Translate target; empty = the browser's UI language. */
   translateTo: string;
+}
+
+export interface RagPrefs {
+  /** Send the parts of long pages/PDFs most relevant to the question, instead of the start. */
+  enabled: boolean;
+  /** Embedding model on the conversation's provider; empty = pick an installed one. */
+  embeddingModel: string;
 }
 
 export type ToolTierSetting = 'auto' | 'native' | 'constrained' | 'text';
@@ -83,6 +92,7 @@ export interface Settings {
   siteRules: SiteRule[];
   chat: ChatPrefs;
   page: PagePrefs;
+  rag: RagPrefs;
   agent: AgentPrefs;
 }
 
@@ -103,7 +113,8 @@ export const DEFAULT_SETTINGS: Settings = {
   reasoning: 'auto',
   siteRules: [],
   chat: { enterToSend: true, showReasoning: false },
-  page: { bubble: true, translateTo: '' },
+  page: { bubble: true, compose: true, translateTo: '' },
+  rag: { enabled: true, embeddingModel: '' },
   agent: {
     toolTier: 'auto',
     maxSteps: 15,

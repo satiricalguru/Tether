@@ -161,14 +161,21 @@ function promptTokens(messages: ChatMessage[] | undefined): number {
   return Math.max(1, Math.ceil(chars / 4));
 }
 
-/** Deterministic unit-length 8-dim vector derived from an FNV-1a hash. */
+/**
+ * Deterministic bag-of-words vector: each word of 3+ letters adds to one of
+ * 64 buckets (FNV-1a hash), then the vector is normalised. Texts sharing
+ * words come out similar, so retrieval tests can check relevance.
+ */
 export function mockEmbedding(text: string): number[] {
-  let h = 0x811c9dc5;
-  for (let i = 0; i < text.length; i++) {
-    h ^= text.charCodeAt(i);
-    h = Math.imul(h, 0x01000193) >>> 0;
+  const v = new Array<number>(64).fill(0);
+  for (const word of text.toLowerCase().match(/[a-z0-9]{3,}/g) ?? []) {
+    let h = 0x811c9dc5;
+    for (let i = 0; i < word.length; i++) {
+      h ^= word.charCodeAt(i);
+      h = Math.imul(h, 0x01000193) >>> 0;
+    }
+    v[h % 64] = (v[h % 64] ?? 0) + 1;
   }
-  const v = Array.from({ length: 8 }, (_, i) => Math.sin(h / 1e6 + i * 1.7));
   const norm = Math.hypot(...v) || 1;
   return v.map((x) => x / norm);
 }

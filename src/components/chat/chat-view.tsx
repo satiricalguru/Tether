@@ -13,14 +13,17 @@ import { cn } from '@/lib/cn';
 import { branchConversation, selectBranch, updateConversation } from '@/chat/store';
 import { siblingInfo } from '@/chat/tree';
 import { useChatUi } from '@/chat/ui-store';
-import { draftAttachments, useContextDraft } from '@/chat/context-store';
+import { activeTab, draftAttachments, loadPageChip, useContextDraft } from '@/chat/context-store';
 import { ModelPicker } from '@/components/models/model-picker';
 import { isPdfUrl } from '@/context/pdf-url';
-import { useContextBudget } from '@/hooks/use-context-budget';
+import { fitAttachments, useContextBudget } from '@/hooks/use-context-budget';
+import { usePrompts } from '@/hooks/use-prompts';
 import { useActiveTabUrl } from '@/hooks/use-active-tab';
 import { useConversation } from '@/hooks/use-conversation';
 import { useSettings } from '@/hooks/use-settings';
 import { matchSiteRule } from '@/lib/settings';
+import { expandTemplate, matchSlash } from '@/prompts/template';
+import { withRetrieval } from '@/rag/client';
 import { Composer } from './composer';
 import { ContextBar } from './context-bar';
 import { ConversationSettingsButton } from './conversation-settings';
@@ -45,6 +48,7 @@ export function ChatView() {
   const openConversation = useChatUi((s) => s.openConversation);
   const live = useChatUi((s) => s.live);
   const { settings } = useSettings();
+  const prompts = usePrompts();
   const tabUrl = useActiveTabUrl();
   const { conversation, messages, thread } = useConversation(conversationId);
   const scroller = useRef<HTMLDivElement>(null);
@@ -105,21 +109,60 @@ export function ChatView() {
     await startAgentRun(conv, task);
   };
 
-  const send = async (text: string) => {
-    if (agentMode && text) {
-      await runAgentTask(text);
-      return;
+  /** Resolves false when nothing was sent (the composer then keeps the text). */
+  const send = async (raw: string): Promise<boolean> => {
+    if (agentMode && raw) {
+      await runAgentTask(raw);
+      return true;
     }
+    // A /command expands its template and attaches the chips it asks for.
+    const slash = matchSlash(raw, prompts);
+    const tab = slash ? await activeTab() : null;
+    const expanded = slash
+      ? expandTemplate(slash.prompt.template, {
+          input: slash.input,
+          url: tab?.url ?? tabUrl ?? '',
+          title: tab?.title ?? '',
+        })
+      : null;
+    if (expanded) {
+      const loading: Promise<void>[] = [];
+      if (expanded.needs.page && chips.page?.status !== 'ready') loading.push(loadPageChip('page'));
+      if (expanded.needs.selection && chips.selection?.status !== 'ready')
+        loading.push(loadPageChip('selection'));
+      await Promise.all(loading);
+      // A chip that failed (nothing selected, page unreadable) shows why; send nothing.
+      const now = useContextDraft.getState().chips;
+      if (
+        (expanded.needs.page && now.page?.status !== 'ready') ||
+        (expanded.needs.selection && now.selection?.status !== 'ready')
+      )
+        return false;
+    }
+    const text = expanded?.question ?? raw;
     pinnedToBottom.current = true;
+    // Chips loaded just now aren't in this render's budget yet: fit them here.
+    const fittedNow =
+      expanded && budget
+        ? fitAttachments(
+            draftAttachments(useContextDraft.getState().chips),
+            budget.available,
+            budget.window,
+          )
+        : budget;
     // Attachments as budgeted (trimmed to fit), captured before the draft resets.
-    const attachments = budget?.fitted ?? drafted;
+    const attachments = fittedNow?.fitted ?? drafted;
     const question =
       text ||
       (attachments.some((a) => a.kind === 'selection') ? 'Explain this.' : 'Summarize this.');
+    const originals = draftAttachments(useContextDraft.getState().chips);
     clearDraft();
+    // Long pages cut to fit: send the parts relevant to the question instead.
+    const sent = await withRetrieval(attachments, originals, question, target?.instanceId ?? '');
     const conv = conversation ?? (await startConversation(tabUrl));
     if (!conversation) openConversation(conv.id);
-    await sendUserMessage(conv, question, attachments);
+    await sendUserMessage(conv, question, sent);
+    return true;
   };
 
   if (!settings) return null;
@@ -201,12 +244,19 @@ export function ChatView() {
       </div>
       <div className="border-t border-border p-2">
         <Composer
-          above={<ContextBar budget={budget} pdfAvailable={isPdfUrl(tabUrl)} />}
+          above={
+            <ContextBar
+              budget={budget}
+              pdfAvailable={isPdfUrl(tabUrl)}
+              instanceId={target?.instanceId}
+            />
+          }
           allowEmpty={drafted.length > 0}
           busy={busy}
           disabled={!conversation && !settings.selection.model && !rule}
           enterToSend={settings.chat.enterToSend}
-          onSend={(t) => void send(t)}
+          onSend={send}
+          prompts={agentMode ? [] : prompts}
           placeholder={
             agentMode ? 'Describe a task, e.g. “find the cheapest boots on this site”' : undefined
           }

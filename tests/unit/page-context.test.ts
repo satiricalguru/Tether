@@ -179,11 +179,16 @@ describe('bubble registration', () => {
     ]);
   });
 
-  it('updates an existing registration, and unregisters when the bubble is off', async () => {
+  it('updates an existing registration, and unregisters when the bubble and compose are off', async () => {
     let calls = stubScripting(['<all_urls>'], true);
     await syncRegistration();
     expect(calls.update).toHaveLength(1);
+    // Either feature keeps the bridge registered.
     await updateSettings({ page: { bubble: false } });
+    calls = stubScripting(['<all_urls>'], true);
+    expect(await syncRegistration()).toEqual(['<all_urls>']);
+    expect(calls.unregister).toEqual([]);
+    await updateSettings({ page: { compose: false } });
     calls = stubScripting(['<all_urls>'], true);
     expect(await syncRegistration()).toEqual([]);
     expect(calls.unregister).toEqual([{ ids: ['tether-bridge'] }]);

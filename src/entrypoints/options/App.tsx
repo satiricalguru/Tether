@@ -5,6 +5,7 @@ import { ChatSection } from '@/components/settings/chat-section';
 import { DataSection } from '@/components/settings/data-section';
 import { AgentSection } from '@/components/settings/agent-section';
 import { PageSection } from '@/components/settings/page-section';
+import { PromptsSection } from '@/components/settings/prompts-section';
 import { RunsSection } from '@/components/settings/runs-section';
 import { ShortcutsSection } from '@/components/settings/shortcuts-section';
 import { SiteRulesSection } from '@/components/settings/site-rules-section';
@@ -23,6 +24,7 @@ const SECTIONS: [string, string][] = [
   ['models', 'Models'],
   ['chat', 'Chat'],
   ['pages', 'Pages'],
+  ['prompts', 'Prompts'],
   ['agent', 'Agent'],
   ['runs', 'Agent runs'],
   ['sites', 'Sites'],
@@ -72,6 +74,9 @@ function Options() {
       </Section>
       <Section id="pages" title="Pages">
         <PageSection />
+      </Section>
+      <Section id="prompts" title="Prompts">
+        <PromptsSection />
       </Section>
       <Section id="agent" title="Agent">
         <AgentSection />

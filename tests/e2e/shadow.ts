@@ -1,8 +1,8 @@
 import type { Page } from '@playwright/test';
 
 /**
- * The highlight bubble lives in a *closed* shadow root so pages can't read
- * or script it. Playwright locators can't see inside either, but the
+ * The highlight bubble and inline compose live in *closed* shadow roots so
+ * pages can't read or script them. Playwright locators can't see inside either, but the
  * DevTools protocol can (DOM.getDocument with pierce).
  */
 
@@ -28,17 +28,22 @@ function text(n: CdpNode): string {
     .join('');
 }
 
-export async function bubbleRoot(page: Page) {
+export function bubbleRoot(page: Page) {
+  return tetherUi(page, 'TETHER-BUBBLE');
+}
+
+/** Read and click inside one of Tether's closed-shadow UIs (host tag in upper case). */
+export async function tetherUi(page: Page, hostTag: string) {
   const cdp = await page.context().newCDPSession(page);
   const snapshot = async () => {
     const { root } = (await cdp.send('DOM.getDocument', { depth: -1, pierce: true })) as {
       root: CdpNode;
     };
-    const host = [...walk(root)].find((n) => n.nodeName === 'TETHER-BUBBLE');
+    const host = [...walk(root)].find((n) => n.nodeName === hostTag);
     return host?.shadowRoots?.[0];
   };
   return {
-    /** Visible text inside the bubble (empty if hidden or absent). */
+    /** Visible text inside the UI (empty if hidden or absent). */
     async text(): Promise<string> {
       const r = await snapshot();
       return r ? text(r) : '';
@@ -51,12 +56,17 @@ export async function bubbleRoot(page: Page) {
     async click(label: string): Promise<void> {
       const r = await snapshot();
       const btn = r && [...walk(r)].find((n) => n.nodeName === 'BUTTON' && text(n) === label);
-      if (!btn) throw new Error(`bubble button "${label}" not found`);
+      if (!btn) throw new Error(`button "${label}" not found in ${hostTag}`);
       const { model } = (await cdp.send('DOM.getBoxModel', { nodeId: btn.nodeId })) as {
         model: { content: number[] };
       };
       const [x1 = 0, y1 = 0, x2 = 0, , , y3 = 0] = model.content;
       await page.mouse.click((x1 + x2) / 2, (y1 + y3) / 2);
+    },
+    /** Text of every element with this tag name (e.g. INS / DEL in the compose preview). */
+    async texts(tag: string): Promise<string[]> {
+      const r = await snapshot();
+      return r ? [...walk(r)].filter((n) => n.nodeName === tag).map(text) : [];
     },
   };
 }

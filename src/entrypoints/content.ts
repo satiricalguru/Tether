@@ -2,6 +2,7 @@ import { defineContentScript } from 'wxt/utils/define-content-script';
 import { hideBanner, showBanner } from '@/content/banner';
 import { pageHandlers } from '@/agent/page/handlers';
 import { installBubble, runtimeAlive } from '@/content/bubble';
+import { deepActiveElement, installCompose } from '@/content/compose';
 import { extractPage } from '@/context/extract';
 import { registerHandlers } from '@/lib/messaging';
 import { getSettings, watchSettings } from '@/lib/settings';
@@ -9,7 +10,7 @@ import { getSettings, watchSettings } from '@/lib/settings';
 /**
  * DOM bridge. Never declared for all sites in the manifest: it's injected on
  * demand (activeTab, a per-site grant) or registered dynamically on the
- * origins the user allowed once the highlight bubble is enabled.
+ * origins the user allowed while the highlight bubble or compose is enabled.
  */
 
 interface BridgeMarker {
@@ -52,6 +53,18 @@ export default defineContentScript({
     if (scope[MARKER]?.alive()) return;
     scope[MARKER] = { alive: runtimeAlive };
 
+    let bubbleOn = false;
+    let composeOn = false;
+    const apply = (s: { page: { bubble: boolean; compose: boolean } }) => {
+      bubbleOn = s.page.bubble;
+      composeOn = s.page.compose;
+    };
+    void getSettings().then(apply);
+    watchSettings(apply);
+
+    // Compose works in any frame the bridge runs in (a field may live in an iframe).
+    const compose = installCompose({ enabled: () => composeOn && runtimeAlive() });
+
     registerHandlers({
       'content:ping': () => ({ url: location.href, title: document.title }),
       'content:extract': ({ maxChars }) =>
@@ -64,17 +77,11 @@ export default defineContentScript({
         else hideBanner();
         return undefined;
       },
+      'content:compose-open': () => ({ opened: compose.openFor(deepActiveElement(document)) }),
     });
 
     // Only the top frame gets a bubble (and the agent banner).
     if (window.top !== window) return;
-    let bubbleOn = false;
-    void getSettings().then((s) => {
-      bubbleOn = s.page.bubble;
-    });
-    watchSettings((s) => {
-      bubbleOn = s.page.bubble;
-    });
     installBubble({ enabled: () => bubbleOn && runtimeAlive() });
   },
 });

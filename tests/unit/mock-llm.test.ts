@@ -105,12 +105,18 @@ describe('helpers', () => {
   it('tokenizes keeping whitespace', () => {
     expect(tokenize('a  b c').join('')).toBe('a  b c');
   });
-  it('embeds deterministically to unit vectors', () => {
+  it('embeds deterministically to unit bag-of-words vectors', () => {
     const a = mockEmbedding('hello');
-    expect(a).toHaveLength(8);
+    expect(a).toHaveLength(64);
     expect(mockEmbedding('hello')).toEqual(a);
     expect(mockEmbedding('world')).not.toEqual(a);
     expect(Math.hypot(...a)).toBeCloseTo(1, 6);
+    // Shared words make texts similar: what retrieval tests rely on.
+    const dot = (x: number[], y: number[]) => x.reduce((n, v, i) => n + v * (y[i] ?? 0), 0);
+    const q = mockEmbedding('parking permit fee');
+    expect(dot(q, mockEmbedding('The parking permit fee is $20.'))).toBeGreaterThan(
+      dot(q, mockEmbedding('Trail conditions are good today.')),
+    );
   });
 });
 

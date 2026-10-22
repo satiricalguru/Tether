@@ -23,6 +23,7 @@ import type { AgentInput, AgentRunRequest } from '@/background/agent';
 import type { ChatDone, ChatStreamEvent, ChatStreamRequest } from '@/background/chat';
 import type { Attachment } from '@/context/attachments';
 import type { PageExtract } from '@/context/extract';
+import type { ComposeRequest } from '@/compose/prompt';
 import type { QuickAction } from '@/prompting/actions';
 import type { CandidateResult, ModelGroup, ProviderStatus } from '@/providers/registry';
 import type { Capabilities, ModelInfo, ProviderConfig } from '@/providers/types';
@@ -63,6 +64,17 @@ export interface MessageMap {
     req: { selection: string; prompt: string; answer: string; url: string; title: string };
     res: { opened: boolean };
   };
+  /** Local RAG: is retrieval on, and which embedding model would it use for this provider. */
+  'bg:rag:status': { req: { instanceId: string }; res: { enabled: boolean; model?: string } };
+  /** Local RAG: fit long attachments to their token shares with the parts relevant to `question`. */
+  'bg:rag:fit': {
+    req: {
+      instanceId: string;
+      question: string;
+      items: { attachment: Attachment; share: number }[];
+    };
+    res: Attachment[];
+  };
   'content:ping': { req: undefined; res: { url: string; title: string } };
   'content:extract': { req: { maxChars?: number }; res: PageExtract };
   'content:wait-text': { req: { text: string; timeoutMs: number }; res: { found: boolean } };
@@ -79,6 +91,8 @@ export interface MessageMap {
   'content:point': { req: { id: string }; res: ElementPoint | null };
   /** Show/hide the "Tether is controlling this tab" banner with its Stop button. */
   'content:agent-banner': { req: { on: boolean; runId: string }; res: undefined };
+  /** Open inline compose on the focused text field (context menu). */
+  'content:compose-open': { req: undefined; res: { opened: boolean } };
   /** From the page banner or Esc in a controlled tab. */
   'bg:agent:stop': { req: { runId?: string }; res: { stopped: boolean } };
   'offscreen:ping': { req: undefined; res: PingResponse };
@@ -126,6 +140,12 @@ export interface StreamMap {
     done: { count: number };
   };
   /** A one-shot action on selected text, run entirely in the background. */
+  /** Inline compose: rewrite or write text for a field in the page. */
+  compose: {
+    req: ComposeRequest;
+    chunk: ChatStreamEvent;
+    done: ChatDone;
+  };
   quick: {
     req: { action: QuickAction; selection: string; question?: string; url: string; title: string };
     chunk: ChatStreamEvent;
