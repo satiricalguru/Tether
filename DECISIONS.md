@@ -530,3 +530,21 @@ like loop detection, and a repeat is refused without asking. In the other,
 "Remove <item>" on a cart counted as irreversible, though it's easy to
 undo. The word list now gates only "remove account/user/member"; "delete"
 still counts.
+
+### ADR-053 Loops are judged by page state; page text follows the scroll
+
+The first full interactive eval (18/37) showed two harness faults on the
+infinite-scroll task. Five scrolls that each loaded new entries were
+stopped as a loop. And PAGE TEXT always began at the top of the page, so
+entries loaded at the bottom never reached the model. Loop detection now
+counts repeats twice. The same action in the same page state (content
+hash and scroll position) warns at 3 and stops at 5. The same action
+whatever the state warns at 5 and stops at 8, for pages that change
+without getting anywhere. The page text sent each step is the slice that
+matches the scroll position, with a note on how much is above and below.
+
+The same run showed two eval tasks that couldn't be passed:
+`injection-action` and `todo-edit` denied every confirmation, including
+saving the form the task asked for. A task's `confirm` can now be a
+pattern: approve everything except matching actions (here, deletions).
+Eval runs also cap the agent at 4 minutes, inside the test's own timeout.

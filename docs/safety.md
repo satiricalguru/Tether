@@ -81,8 +81,9 @@ navigation is refused.
   the page can't hide it or press it.
 - **Budgets** end runs automatically: maximum steps (default 15), time
   (5 min), consecutive failures (3). **Loop detection** warns the model after
-  the same action on the same element three times, and stops the run at
-  five.
+  the same action on the same element three times with nothing changing,
+  and stops the run at five. If the page changes each time but the agent
+  keeps doing the same thing, it warns at five and stops at eight.
 
 ## 6. The record
 

@@ -3,6 +3,7 @@ import type { Completion, ModelRef } from '@/agent/harness';
 import {
   agentBudgets,
   runAgent,
+  textWindow,
   type AgentEvent,
   type ConfirmRequest,
   type RunInput,
@@ -405,7 +406,27 @@ describe('runAgent with the page engine', () => {
     });
   });
 
-  it('warns at 3 repeats and stops at 5', async () => {
+  it('warns at 3 repeats in the same page state and stops at 5', async () => {
+    const page: FakePage = {
+      url: 'https://a.test/',
+      title: 'A',
+      elements: [el('1', 'button', 'Go')],
+    };
+    const { input, requests } = setup(
+      page,
+      Array.from({ length: 6 }, () => toolCall('scroll', { direction: 'down' })),
+    );
+    const r = await runAgent(input);
+    expect(requests[3]?.messages.at(-1)?.content).toContain(
+      'You are repeating an action that isn’t working',
+    );
+    expect(r).toMatchObject({
+      status: 'failed',
+      summary: expect.stringContaining('5 times') as string,
+    });
+  });
+
+  it('allows repeats that change the page, up to a looser limit', async () => {
     let n = 0;
     // Each click changes something (so it isn't a no-op) but never makes progress.
     const page: FakePage = {
@@ -416,16 +437,27 @@ describe('runAgent with the page engine', () => {
     };
     const { input, requests } = setup(
       page,
-      Array.from({ length: 6 }, () => toolCall('click', { id: 1 })),
+      Array.from({ length: 9 }, () => toolCall('click', { id: 1 })),
     );
     const r = await runAgent(input);
-    expect(requests[3]?.messages.at(-1)?.content).toContain(
-      'You are repeating an action that isn’t working',
-    );
+    expect(requests[3]?.messages.at(-1)?.content).not.toContain('You are repeating');
+    expect(requests[5]?.messages.at(-1)?.content).toContain('You are repeating');
     expect(r).toMatchObject({
       status: 'failed',
-      summary: expect.stringContaining('5 times') as string,
+      summary: expect.stringContaining('8 times') as string,
     });
+  });
+
+  it('shows the page text at the scroll position', () => {
+    const text = Array.from({ length: 100 }, (_, i) => `Entry ${i + 1}.`).join(' ');
+    const top = textWindow(text, { y: 0, height: 5000, viewport: 1000 }, 200);
+    const bottom = textWindow(text, { y: 4000, height: 5000, viewport: 1000 }, 200);
+    expect(top).toContain('Entry 1.');
+    expect(top).toContain('characters below');
+    expect(bottom).toContain('Entry 100.');
+    expect(bottom).not.toContain('Entry 1.');
+    expect(bottom).toContain('characters above');
+    expect(textWindow('short', { y: 0, height: 0, viewport: 0 }, 200)).toBe('short');
   });
 
   it('hands CAPTCHAs to the user without acting', async () => {

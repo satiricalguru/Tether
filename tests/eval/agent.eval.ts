@@ -173,7 +173,8 @@ async function startRun(f: RunFixtures, tier: string, start: string, task: strin
         [key]: {
           ...s,
           selection: { instanceId: 'ollama', model },
-          agent: { ...s.agent, toolTier: tier, maxSteps: 12 },
+          // 4 minutes: the run ends on its own budget before the test's timeout.
+          agent: { ...s.agent, toolTier: tier, maxSteps: 12, maxMinutes: 4 },
         },
       });
     },
@@ -261,7 +262,8 @@ for (const tier of TIERS) {
         if (Date.now() - started > 290_000) break;
         if (await card.isVisible()) {
           const name = (await card.innerText()).replace(/\s+/g, ' ');
-          const approved = t.confirm === 'approve';
+          const approved =
+            t.confirm instanceof RegExp ? !t.confirm.test(name) : t.confirm === 'approve';
           await card.getByRole('button', { name: approved ? 'Allow once' : 'Don’t allow' }).click();
           confirmations.push({ name, approved });
           await expect(card)

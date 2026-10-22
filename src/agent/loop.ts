@@ -113,6 +113,9 @@ export function agentBudgets(
 
 export const LOOP_WARN = 3;
 export const LOOP_ABORT = 5;
+/** Looser limits for the same action whatever the page state (it keeps changing, but not usefully). */
+export const LOOP_WARN_ANY = 5;
+export const LOOP_ABORT_ANY = 8;
 
 /**
  * The gist of a page for the progress log: its opening text with the title
@@ -147,6 +150,25 @@ async function tabList(ctx: AgentContext) {
 }
 
 /** Phase 5 observation: tabs + numbered elements + readable text, all fenced as page data. */
+/**
+ * The part of the page text that matches the scroll position, so content
+ * the agent scrolled to (or that loaded at the bottom) is what it reads.
+ */
+export function textWindow(text: string, scroll: PageSnapshot['scroll'], chars: number): string {
+  if (text.length <= chars) return text;
+  const range = scroll.height - scroll.viewport;
+  const at = range > 0 ? Math.min(1, Math.max(0, scroll.y / range)) : 0;
+  const start = Math.round(at * (text.length - chars));
+  const end = start + chars;
+  return [
+    start > 0 ? `(… ${start} characters above not shown; scroll up to read them)` : '',
+    text.slice(start, end),
+    end < text.length ? `(… ${text.length - end} characters below; scroll down to read them)` : '',
+  ]
+    .filter(Boolean)
+    .join('\n');
+}
+
 export function renderAgentView(
   snap: PageSnapshot,
   tabs: { title: string; url: string; current: boolean }[],
@@ -155,7 +177,7 @@ export function renderAgentView(
   const t = tabs
     .map((x, i) => `[${i}${x.current ? '*' : ''}] ${x.title.slice(0, 60) || x.url}`)
     .join('  ');
-  const text = snap.text.trim().slice(0, textBudget * 4);
+  const text = textWindow(snap.text.trim(), snap.scroll, textBudget * 4);
   const body = `ELEMENTS:\n${renderSnapshot(snap)}${text ? `\n\nPAGE TEXT:\n${text}` : ''}`;
   return [
     `URL: ${snap.url}`,
@@ -408,15 +430,23 @@ export async function runAgent(input: RunInput): Promise<RunResult> {
 
       // Loop detection: the same action on the same thing on the same page.
       const key = `${obs.url}|${call.name}|${target ? `${target.role}:${target.name}` : JSON.stringify(call.args)}`;
-      const count = (repeats.get(key) ?? 0) + 1;
-      repeats.set(key, count);
-      if (count >= LOOP_ABORT) {
+      // Counted twice. In the same page state (hash and scroll position) the
+      // limits are tight: five scrolls that each load more entries are
+      // progress, five that change nothing aren't. Across states they're
+      // looser, for pages that change on every click without getting anywhere.
+      const stateKey = `${key}|${obs.snap ? `${obs.snap.hash}@${obs.snap.scroll.y}` : ''}`;
+      const same = (repeats.get(stateKey) ?? 0) + 1;
+      const any = (repeats.get(key) ?? 0) + 1;
+      repeats.set(stateKey, same);
+      repeats.set(key, any);
+      const count = same >= LOOP_ABORT || any >= LOOP_ABORT_ANY ? Math.max(same, any) : 0;
+      if (count > 0) {
         return result(
           'failed',
           `Stopped: the agent repeated ${call.name}${targetName ? ` on ${targetName}` : ''} ${count} times without progress.`,
         );
       }
-      if (count >= LOOP_WARN) {
+      if (same >= LOOP_WARN || any >= LOOP_WARN_ANY) {
         warning =
           'You are repeating an action that isn’t working. Re-read the page and try a different approach.';
         emit({ type: 'warning', message: warning });
