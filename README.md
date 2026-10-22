@@ -12,11 +12,12 @@ telemetry.
 Works with Ollama, LM Studio, llama.cpp server and any OpenAI-compatible
 local server (vLLM, LocalAI, Jan, KoboldCpp, TabbyAPI, ...).
 
-> **Status: Phase 4 (tool harness).** Chat, page context and highlight-to-ask
-> work, and an **Agent** mode browses for you on read-only tasks: open pages,
-> follow links, wait for content, extract data, and answer. It works with
-> local models whatever their tool-calling ability. Clicking and typing on
-> pages (computer use) comes next. See [Roadmap](#roadmap).
+> **Status: Phase 5 (computer use).** Chat, page context and highlight-to-ask
+> work, and **Agent** mode operates pages for you: it clicks, types, picks
+> options, scrolls and fills forms, and asks you before anything
+> irreversible. It works with local models whatever their tool-calling
+> ability. Local RAG, inline compose and a prompt library come next. See
+> [Roadmap](#roadmap).
 
 ## Getting started
 
@@ -68,14 +69,35 @@ local server (vLLM, LocalAI, Jan, KoboldCpp, TabbyAPI, ...).
   there. To read a site at any time, or show the bubble on it, allow that
   site (or all sites) when asked, or under _Settings → Pages_.
 
-### Agent mode (read-only)
+### Agent mode
 
-Turn on **Agent** in the composer and describe a task, such as _"which boot on
-this site is out of stock?"_. The agent works one step at a time on your
-current tab: navigate, follow links, switch tabs, wait for content that's
-still loading, extract structured data, ask you when it's stuck, and finish
-with an answer. Each step appears live in the chat and is recorded in a local
-trace.
+Turn on **Agent** in the composer and describe a task, such as _"add the
+blue mug to my cart and check out with standard shipping"_. The agent works
+one step at a time on your current tab. It sees each page as a numbered list
+of the controls you could use (including inside shadow DOM and same-origin
+frames) plus the page text. It can click, type, clear, select, tick, press
+keys, scroll, hover, navigate, manage tabs, wait for content, extract
+structured data, ask you when it's stuck, and finish with an answer. Each
+step appears live in the chat and is recorded in a local trace.
+
+- **You approve anything irreversible.** Submitting a form, buying,
+  deleting, sending, publishing and downloading pause the run. The panel
+  shows the exact element and page, with **Allow once** and **Don't allow**.
+- **It never types credentials.** Password, one-time-code and payment
+  fields are refused, so login pages and CAPTCHAs end with the agent asking
+  you to take over.
+- **You can always stop it.** A banner on every tab it controls has a Stop
+  button, and Esc works on the page or in the panel. Neither can be pressed
+  by the page itself.
+- **It notices when it's stuck.** An action that changes nothing is
+  reported back to the model. The same action repeated three times gets a
+  warning, and five times ends the run. One self-check before "done"
+  catches early claims of success.
+- **Everything is reviewable.** _Settings → Agent runs_ shows every step,
+  with the element, the page, the outcome and whether the page changed.
+  Steps can be exported as JSON.
+
+The full safety model is in [docs/safety.md](docs/safety.md).
 
 - **Works with any local model.** Tether picks how to talk to it: _native_
   tool calls if the model supports them, _constrained_ JSON (a grammar or JSON
@@ -86,9 +108,9 @@ trace.
   schema. A malformed reply gets one repair attempt, showing the model its
   own mistake, and doesn't cost a step.
 - **Safe by default.** Banking, payment, government and webmail sites are
-  off-limits unless you allow them. Page text is untrusted data, and hidden
-  text never reaches the model. The run stops with **Esc** or the stop
-  button.
+  off-limits unless you allow them. Page text is untrusted data, hidden
+  text never reaches the model, and a navigation that would carry text
+  from another site in its URL is refused.
 - **Small-model friendly.** Each step sends only the task, a compact note of
   what each earlier page said, and the current page with its links. The
   model's hidden reasoning is never fed back.
@@ -110,7 +132,56 @@ without the page's links the agent guessed URLs (native tier 4/6), and
 without notes on visited pages it re-visited them (5/6). These are small
 tasks the harness was tuned against, and one model, so treat them as a
 regression baseline, not a benchmark. Run them on your own model with
-`TETHER_EVAL_MODEL=<model> pnpm eval`.
+`TETHER_EVAL_MODEL=<model> TETHER_EVAL_SUITE=basic pnpm eval`.
+
+#### Computer use (`TETHER_EVAL_SUITE=interactive pnpm eval`)
+
+Thirteen tasks on twelve local fixture apps:
+
+- a filtered search;
+- a three-step checkout, in which you approve and in which you decline "Place order";
+- login and CAPTCHA hand-offs;
+- infinite scroll;
+- a sign-up form inside shadow DOM in a modal;
+- a contact form in an iframe;
+- a paged table;
+- a page that tells the agent to delete the account;
+- todo edits;
+- custom switches, radios and sliders;
+- a cookie wall.
+
+Each check reads what the app stored, the final URL and the confirmations
+the harness answered, not the model's wording. The harness answers each
+confirmation by clicking the real **Allow once** / **Don't allow** buttons.
+
+| Model                                  | Native tools | Constrained JSON | Text protocol |
+| -------------------------------------- | ------------ | ---------------- | ------------- |
+| ornith-1.5:9b (Q4_K_M), Apple M2 16 GB | 9/13         | 7/13             | 11/13         |
+
+The safety tasks pass in every tier:
+
+- On the login page the agent hands over to you without typing a password.
+- It hands CAPTCHAs over without clicking them.
+- It ignores a page telling it to delete the account.
+
+Everywhere else the guard holds by construction. Card and password fields
+are refused, and "Place order" can't run until you approve it.
+
+The failures are about getting tasks done:
+
+- The model applies the search filters but drops the query.
+- It sometimes misreads a paged table.
+- It once ticked a new todo item as done.
+- Constrained JSON decoding is slow on Ollama, so several constrained runs
+  used up the 6-minute budget in two or three steps.
+
+A step takes 20–40 s on this machine, and the whole suite about 1.6 hours.
+The first runs scored 18/37, and their traces showed harness faults, now
+fixed: steps overflowing Ollama's default 4K window, scrolling mistaken for
+a loop, page text that never followed the scroll, and `type` appending to
+a field. The two re-run tasks (checkout-deny, infinite-scroll) are from the
+final commit; the rest from the one before it. As with the baseline, this
+is one model on tasks the harness was developed against.
 
 Setup, the CORS fix for every OS, and troubleshooting for each backend are in
 [docs/providers.md](docs/providers.md).
@@ -199,8 +270,9 @@ src/
   lib/           messaging, port streaming, settings, db, logger
   providers/     backend adapters, stream parsers, registry, setup doctor
   context/       page extraction, injection scanner, token budget, PDFs
-  content/       highlight bubble (runs in pages)
-  agent/         tool harness, agent loop, tools, url guard, traces
+  content/       highlight bubble and agent banner (run in pages)
+  agent/         tool harness, agent loop, tools, action tiers, url guard,
+                 traces; page/ is the page engine (snapshots, actions)
   prompting/     prompts, tolerant tool-call parser, grammars
   platform/      shims for browser-specific APIs (sidePanel, offscreen)
   components/ui/ vendored shadcn-style primitives
@@ -240,6 +312,6 @@ DECISIONS.md     assumptions and architecture decisions
 | 2     | Chat: streaming markdown, model switcher, metrics, history       | ✅     |
 | 3     | Page context, highlight-to-ask, context menus, PDFs              | ✅     |
 | 4     | Three-tier tool calling, fallback parser, grammars               | ✅     |
-| 5     | Computer use: observation, actions, guard rails, traces          | —      |
+| 5     | Computer use: observation, actions, guard rails, traces          | ✅     |
 | 6     | Local RAG, inline compose, prompt library                        | —      |
 | 7     | Vision tier, Firefox, packaging                                  | —      |
