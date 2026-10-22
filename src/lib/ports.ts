@@ -1,7 +1,7 @@
 import { browser, type Browser } from 'wxt/browser';
 import { AsyncQueue } from './async-queue';
 import { deserializeError, serializeError, type SerializedError } from './errors';
-import type { StreamChunk, StreamDone, StreamName, StreamRequest } from './protocol';
+import type { StreamChunk, StreamDone, StreamInput, StreamName, StreamRequest } from './protocol';
 
 /**
  * Streaming over `runtime.Port`.
@@ -13,7 +13,11 @@ import type { StreamChunk, StreamDone, StreamName, StreamRequest } from './proto
 
 const PREFIX = 'tether:stream:';
 
-type ClientMessage = { t: 'start'; payload: unknown } | { t: 'heartbeat' };
+type ClientMessage =
+  | { t: 'start'; payload: unknown }
+  | { t: 'heartbeat' }
+  /** Client → server data during a stream (e.g. a confirmation answer). */
+  | { t: 'input'; data: unknown };
 type ServerMessage =
   | { t: 'chunk'; data: unknown }
   | { t: 'done'; data: unknown }
@@ -25,6 +29,8 @@ export interface StreamHandle<K extends StreamName> extends AsyncIterable<Stream
   /** Resolves with the final value; rejects on error or abort. */
   readonly done: Promise<StreamDone<K>>;
   abort(): void;
+  /** Send data to the running handler (streams that declare `input`). */
+  send(data: StreamInput<K>): void;
 }
 
 export interface OpenStreamOptions {
@@ -110,14 +116,24 @@ export function openStream<K extends StreamName>(
     port.postMessage({ t: 'start', payload: request } satisfies ClientMessage);
   }
 
+  const send = (data: StreamInput<K>) => {
+    if (!settled) port.postMessage({ t: 'input', data } satisfies ClientMessage);
+  };
+
   return {
     done,
     abort,
+    send,
     [Symbol.asyncIterator]: () => queue[Symbol.asyncIterator](),
   };
 }
 
 export interface StreamContext {
+  /**
+   * Subscribe to client input. Input that arrived before subscribing is
+   * delivered on subscription. Returns an unsubscribe function.
+   */
+  onInput: (listener: (data: unknown) => void) => () => void;
   signal: AbortSignal;
   sender: Port['sender'];
 }
@@ -158,6 +174,15 @@ export function registerStreamHandlers(
     const controller = new AbortController();
     let started = false;
     let disconnected = false;
+    const pendingInput: unknown[] = [];
+    const inputListeners = new Set<(data: unknown) => void>();
+    const onInput = (listener: (data: unknown) => void) => {
+      inputListeners.add(listener);
+      for (const d of pendingInput.splice(0)) listener(d);
+      return () => {
+        inputListeners.delete(listener);
+      };
+    };
 
     const post = (msg: ServerMessage) => {
       if (disconnected) return;
@@ -176,6 +201,11 @@ export function registerStreamHandlers(
 
     port.onMessage.addListener((raw: unknown) => {
       const msg = raw as ClientMessage;
+      if (msg.t === 'input') {
+        if (inputListeners.size === 0) pendingInput.push(msg.data);
+        for (const l of inputListeners) l(msg.data);
+        return;
+      }
       if (msg.t !== 'start' || started) return;
       started = true;
       setActive(1);
@@ -184,6 +214,7 @@ export function registerStreamHandlers(
           const iterator = handler(msg.payload as never, {
             signal: controller.signal,
             sender: port.sender,
+            onInput,
           });
           for (;;) {
             const step = await iterator.next();
@@ -210,4 +241,9 @@ export function registerStreamHandlers(
   return () => {
     browser.runtime.onConnect.removeListener(onConnect);
   };
+}
+
+/** Context for calling a stream handler directly (no port, no client input). */
+export function directContext(signal: AbortSignal): StreamContext {
+  return { signal, sender: undefined, onInput: () => () => undefined };
 }

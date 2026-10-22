@@ -118,7 +118,7 @@ function setup(
     task: 'Find the price of the Granite GTX',
     model: NATIVE,
     tools: READ_ONLY_TOOLS,
-    prefs: { ...DEFAULT_SETTINGS.agent, ...prefs },
+    prefs: { ...DEFAULT_SETTINGS.agent, critique: false, ...prefs },
     ctx,
     complete: (req) => {
       requests.push(req);

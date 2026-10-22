@@ -58,6 +58,10 @@ export interface AgentPrefs {
   allowDomains: string[];
   /** Hosts the agent may never visit. */
   blockDomains: string[];
+  /** 'debugger' sends trusted input via the Chrome DevTools protocol (optional permission). */
+  inputBackend: 'scripting' | 'debugger';
+  /** Ask the model to check its answer against the final page before finishing. */
+  critique: boolean;
 }
 
 export interface ModelSelection {
@@ -107,6 +111,8 @@ export const DEFAULT_SETTINGS: Settings = {
     maxConsecutiveFailures: 3,
     allowDomains: [],
     blockDomains: [],
+    inputBackend: 'scripting',
+    critique: true,
   },
 };
 

@@ -13,7 +13,7 @@ import { UNTRUSTED_RULE, type Attachment } from '@/context/attachments';
 import { toAttachment } from '@/context/build';
 import { fitAttachments } from '@/hooks/use-context-budget';
 import type { ConversationRecord, MessageRecord } from '@/lib/db';
-import type { StreamHandler } from '@/lib/ports';
+import { type StreamHandler, directContext } from '@/lib/ports';
 import { DEFAULT_SETTINGS, updateSettings } from '@/lib/settings';
 import { quickInstruction, translationTarget } from '@/prompting/actions';
 
@@ -90,7 +90,7 @@ describe('quick actions', () => {
       const quick = createQuickStream({ chat, capabilities: () => Promise.resolve({ thinking }) });
       const it = quick(
         { action: 'explain', selection: 's', url: 'https://a.com', title: 'A' },
-        { signal: new AbortController().signal, sender: undefined },
+        directContext(new AbortController().signal),
       );
       let step = await it.next();
       while (!step.done) step = await it.next();

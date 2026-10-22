@@ -6,6 +6,7 @@ import { memoryOverrides } from '@/providers/overrides';
 import { ProviderRegistry, mergeDiscovery } from '@/providers/registry';
 import type { ProviderConfig, ProviderKind } from '@/providers/types';
 import { startMockLlm, type MockOptions, type MockServer } from '../fixtures/mock-llm/server';
+import { directContext } from '@/lib/ports';
 
 /**
  * Real adapters + registry against the mock backends over real HTTP. No
@@ -59,7 +60,7 @@ async function runChat(
     contextLength: async (id, m) => (await registry.capabilities(id, m)).contextLength,
     thresholds: { knownCold: 200, unknown: 300, knownHot: 400 },
   });
-  const it = handler(req, { signal, sender: undefined });
+  const it = handler(req, directContext(signal));
   const events: ChatStreamEvent[] = [];
   for (;;) {
     const step = await it.next();

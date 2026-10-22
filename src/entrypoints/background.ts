@@ -1,6 +1,6 @@
 import { browser } from 'wxt/browser';
 import { defineBackground } from 'wxt/utils/define-background';
-import { createAgentStream } from '@/background/agent';
+import { createAgentStream, stopRun, stopRunInTab } from '@/background/agent';
 import { createChatStream } from '@/background/chat';
 import {
   contextHandlers,
@@ -41,6 +41,10 @@ export default defineBackground({
     registerHandlers({
       ...providerHandlers(registry),
       ...contextHandlers(),
+      // Stop from the page banner / Esc: by run id, else whatever run controls that tab.
+      'bg:agent:stop': ({ runId }, sender) => ({
+        stopped: (runId ? stopRun(runId) : false) || (sender.tab?.id !== undefined && stopRunInTab(sender.tab.id)),
+      }),
       'bg:ping': () => ({
         pong: true,
         version: browser.runtime.getManifest().version,

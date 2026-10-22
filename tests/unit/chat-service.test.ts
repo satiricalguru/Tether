@@ -4,6 +4,7 @@ import { memoryOverrides } from '@/providers/overrides';
 import { ProviderRegistry } from '@/providers/registry';
 import type { ChatChunk, Provider } from '@/providers/types';
 import { json, fakeFetch } from '../helpers/fake-fetch';
+import { directContext } from '@/lib/ports';
 
 /** `chunks` entries may be numbers: "advance the clock to this time". */
 function fakeProvider(
@@ -34,7 +35,7 @@ async function run(provider: Provider, now: () => number) {
   const handler = createChatStream({ getProvider: () => Promise.resolve(provider), now });
   const it = handler(
     { instanceId: 'p', model: 'm', messages: [] },
-    { signal: new AbortController().signal, sender: undefined },
+    directContext(new AbortController().signal),
   );
   const events: ChatStreamEvent[] = [];
   for (;;) {
@@ -115,7 +116,7 @@ describe('chat stream context window', () => {
     });
     const it = handler(
       { instanceId: 'p', model: 'm', messages: [], ...(numCtx ? { options: { numCtx } } : {}) },
-      { signal: new AbortController().signal, sender: undefined },
+      directContext(new AbortController().signal),
     );
     for (;;) {
       const step = await it.next();

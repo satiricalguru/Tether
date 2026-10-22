@@ -1,15 +1,21 @@
+import { fence } from '@/context/attachments';
+import { estimateTokens } from '@/context/tokens';
 import { isAbortError } from '@/lib/errors';
 import type { AgentPrefs } from '@/lib/settings';
 import { agentTurnPrompt } from '@/prompting/system';
 import { decide, downgrade, selectTier, type CompleteFn, type ModelRef } from './harness';
 import { argsInline, progressLog, renderObservation } from './observation';
-import { executeTool, type AgentContext } from './tools/execute';
+import { renderSnapshot } from './page/snapshot';
+import type { PageSnapshot, SnapshotElement } from './page/types';
+import { carriesData, classify } from './tiers';
+import { ELEMENT_TOOLS } from './tools/specs';
+import { executeTool, type AgentContext, type ToolOutcome } from './tools/execute';
 import { redactForTrace, type TraceSink } from './trace';
-import type { ToolSpec, ToolTier } from './types';
+import type { ToolCall, ToolSpec, ToolTier } from './types';
 
 /**
- * observe → decide → validate → execute, until done, askUser, a budget, or
- * stop. Phase 5 adds loop detection, a critique pass and action tiers.
+ * observe → decide → validate → guard → (confirm) → execute → verify, until
+ * done, askUser, a budget, or stop.
  */
 
 export interface StepEvent {
@@ -17,16 +23,32 @@ export interface StepEvent {
   thought?: string;
   action?: string;
   args?: Record<string, unknown>;
-  outcome: 'ok' | 'error' | 'invalid' | 'blocked';
+  /** The element acted on, as the model saw it. */
+  target?: string;
+  outcome: 'ok' | 'error' | 'invalid' | 'blocked' | 'noop' | 'declined';
   summary: string;
   url: string;
   repaired?: boolean;
 }
 
+export interface ConfirmRequest {
+  id: string;
+  step: number;
+  reason: string;
+  action: string;
+  args: Record<string, unknown>;
+  element?: { role: string; name: string; hint?: string };
+  url: string;
+  title: string;
+}
+
 export type AgentEvent =
   | { type: 'tier'; tier: ToolTier; reason: string }
   | { type: 'thinking'; n: number }
-  | { type: 'step'; step: StepEvent };
+  | { type: 'step'; step: StepEvent }
+  | { type: 'confirm'; request: ConfirmRequest }
+  | { type: 'confirmed'; id: string; approved: boolean }
+  | { type: 'warning'; message: string };
 
 export type RunStatus = 'done' | 'needs-user' | 'failed' | 'stopped';
 
@@ -49,13 +71,28 @@ export interface RunInput {
   complete: CompleteFn;
   trace: TraceSink;
   emit: (e: AgentEvent) => void;
+  /** Ask the user about an irreversible action. Resolves true to proceed. */
+  confirm?: (req: ConfirmRequest) => Promise<boolean>;
   /** Tokens for page text in each observation. */
   contentBudget?: number;
+  /** Tokens for the element list (page engine). */
+  elementBudget?: number;
   now?: () => number;
 }
 
-const NAVIGATING = new Set(['navigate', 'newTab', 'back', 'switchTab']);
+const NAVIGATING = new Set([
+  'navigate',
+  'newTab',
+  'back',
+  'forward',
+  'reload',
+  'switchTab',
+  'closeTab',
+  'click',
+]);
 const DIGEST_CHARS = 240;
+export const LOOP_WARN = 3;
+export const LOOP_ABORT = 5;
 
 /**
  * The gist of a page for the progress log: its opening text with the title
@@ -75,19 +112,70 @@ export function pageDigest(text: string, title: string, max = DIGEST_CHARS): str
 interface Observed {
   text: string;
   url: string;
-  /** Present when the page could be read. */
+  title: string;
   digest?: string;
+  /** Page-engine snapshot, when available. */
+  snap?: PageSnapshot;
 }
 
-async function observe(ctx: AgentContext, budget: number): Promise<Observed> {
+async function tabList(ctx: AgentContext) {
   const tabs = await ctx.tabs.list(ctx.windowId);
-  const cur = tabs.find((t) => t.id === ctx.tabId);
-  const tabList = tabs.map((t) => ({ title: t.title, url: t.url, current: t.id === ctx.tabId }));
+  return {
+    cur: tabs.find((t) => t.id === ctx.tabId),
+    list: tabs.map((t) => ({ title: t.title, url: t.url, current: t.id === ctx.tabId })),
+  };
+}
+
+/** Phase 5 observation: tabs + numbered elements + readable text, all fenced as page data. */
+export function renderAgentView(
+  snap: PageSnapshot,
+  tabs: { title: string; url: string; current: boolean }[],
+  textBudget: number,
+): string {
+  const t = tabs
+    .map((x, i) => `[${i}${x.current ? '*' : ''}] ${x.title.slice(0, 60) || x.url}`)
+    .join('  ');
+  const text = snap.text.trim().slice(0, textBudget * 4);
+  const body = `ELEMENTS:\n${renderSnapshot(snap)}${text ? `\n\nPAGE TEXT:\n${text}` : ''}`;
+  return [
+    `URL: ${snap.url}`,
+    `TITLE: ${snap.title}`,
+    `TABS: ${t}`,
+    fence({
+      id: 'obs',
+      kind: 'page',
+      title: snap.title,
+      url: snap.url,
+      text: body,
+      tokens: estimateTokens(body),
+      warnings: [],
+    }),
+  ].join('\n');
+}
+
+async function observe(ctx: AgentContext, input: RunInput, lastId?: string): Promise<Observed> {
+  const { cur, list } = await tabList(ctx);
+  const budget = input.contentBudget ?? 2500;
   try {
+    if (ctx.page) {
+      const snap = await ctx.page.snapshot(ctx.tabId, {
+        task: input.task,
+        ...(lastId ? { lastId } : {}),
+        maxTokens: input.elementBudget ?? 4000,
+      });
+      return {
+        text: renderAgentView(snap, list, budget),
+        url: snap.url,
+        title: snap.title,
+        digest: pageDigest(snap.text, snap.title),
+        snap,
+      };
+    }
     const page = await ctx.readPage(ctx.tabId);
     return {
-      text: renderObservation({ page, tabs: tabList, contentBudget: budget }),
+      text: renderObservation({ page, tabs: list, contentBudget: budget }),
       url: page.url,
+      title: page.title,
       digest: pageDigest(page.text, page.title),
     };
   } catch (err) {
@@ -95,20 +183,78 @@ async function observe(ctx: AgentContext, budget: number): Promise<Observed> {
     return {
       text: renderObservation({
         page: { error: (err as Error).message, url, title: cur?.title ?? '' },
-        tabs: tabList,
+        tabs: list,
         contentBudget: budget,
       }),
       url,
+      title: cur?.title ?? '',
     };
+  }
+}
+
+function targetOf(call: ToolCall, snap?: PageSnapshot): SnapshotElement | undefined {
+  const id = call.args.id;
+  if ((typeof id !== 'string' && typeof id !== 'number') || !snap) return undefined;
+  return snap.elements.find((e) => e.id === String(id));
+}
+
+function describeTarget(el: SnapshotElement | undefined): string | undefined {
+  return el ? `${el.role} "${el.name || el.id}"` : undefined;
+}
+
+/** Ask the model to check its own claim against the final page (spec §6.4 critique). */
+async function critique(
+  input: RunInput,
+  obsText: string,
+  summary: string,
+): Promise<{ complete: boolean; reason: string }> {
+  try {
+    const c = await input.complete(
+      {
+        instanceId: input.model.instanceId,
+        model: input.model.model,
+        messages: [
+          {
+            role: 'system',
+            content:
+              'You check whether a browsing agent really finished its task. Look at the task, the agent’s final answer and the current page. Reply with JSON {"complete": true|false, "reason": "..."}. Say false only if something the task asked for clearly was not done or the answer contradicts the page.',
+          },
+          {
+            role: 'user',
+            content: `TASK: ${input.task}\n\nAGENT'S ANSWER: ${summary}\n\nCURRENT PAGE:\n${obsText}`,
+          },
+        ],
+        responseFormat: {
+          type: 'json_schema',
+          name: 'critique',
+          schema: {
+            type: 'object',
+            properties: { complete: { type: 'boolean' }, reason: { type: 'string' } },
+            required: ['complete', 'reason'],
+          },
+        },
+        options: { temperature: 0, maxTokens: 200 },
+        ...(input.model.caps.thinking ? { think: false } : {}),
+      },
+      input.ctx.signal,
+    );
+    const m = /\{[\s\S]*\}/.exec(c.text);
+    const parsed = m ? (JSON.parse(m[0]) as { complete?: unknown; reason?: unknown }) : {};
+    return {
+      complete: parsed.complete !== false,
+      reason: typeof parsed.reason === 'string' ? parsed.reason : '',
+    };
+  } catch (err) {
+    if (isAbortError(err)) throw err;
+    // A critique that can't run never blocks finishing.
+    return { complete: true, reason: '' };
   }
 }
 
 export async function runAgent(input: RunInput): Promise<RunResult> {
   const { ctx, prefs, emit, model } = input;
   const now = input.now ?? (() => Date.now());
-  const started = now();
-  const deadline = started + prefs.maxMinutes * 60_000;
-  const budget = input.contentBudget ?? 2500;
+  let deadline = now() + prefs.maxMinutes * 60_000;
   let tier = selectTier(model.caps, prefs.toolTier);
   emit({
     type: 'tier',
@@ -117,9 +263,15 @@ export async function runAgent(input: RunInput): Promise<RunResult> {
   });
 
   const log: string[] = [];
+  const seen: { host: string; text: string }[] = [{ host: '', text: input.task }];
+  const repeats = new Map<string, number>();
+  let warning = '';
   let pendingDigest = false;
   let failures = 0;
+  let critiqued = false;
   let n = 0;
+  let lastId: string | undefined;
+  let cached: Observed | undefined;
   const result = (
     status: RunStatus,
     summary: string,
@@ -132,6 +284,13 @@ export async function runAgent(input: RunInput): Promise<RunResult> {
     tier,
     ...extra,
   });
+  const hostOf = (u: string) => {
+    try {
+      return new URL(u).hostname;
+    } catch {
+      return '';
+    }
+  };
 
   try {
     while (n < prefs.maxSteps) {
@@ -139,16 +298,31 @@ export async function runAgent(input: RunInput): Promise<RunResult> {
       if (now() > deadline) return result('failed', `Ran out of time (${prefs.maxMinutes} min).`);
       n += 1;
       emit({ type: 'thinking', n });
-      const obs = await observe(ctx, budget);
-      // The page the previous step moved to: remember its gist on that step's line.
+      const obs = cached ?? (await observe(ctx, input, lastId));
+      cached = undefined;
       if (pendingDigest && obs.digest && log.length > 0) {
         const last = log.length - 1;
         log[last] = `${log[last] ?? ''} — ${obs.digest}`;
       }
       pendingDigest = false;
-      const turn = [
-        { role: 'user' as const, content: agentTurnPrompt(input.task, progressLog(log), obs.text) },
-      ];
+      if (obs.snap) {
+        seen.push({ host: hostOf(obs.url), text: obs.snap.text.slice(0, 3000) });
+        if (seen.length > 8) seen.splice(1, 1);
+      }
+
+      // Bot checks are the user's to solve (spec §11: no CAPTCHA solving).
+      if (obs.snap?.captcha) {
+        return result(
+          'needs-user',
+          'This page is asking to verify you’re human. Please complete the check in the tab, then ask me to continue.',
+        );
+      }
+
+      const prompt =
+        agentTurnPrompt(input.task, progressLog(log), obs.text) +
+        (warning ? `\n\nWARNING: ${warning}` : '');
+      warning = '';
+      const turn = [{ role: 'user' as const, content: prompt }];
 
       let decision;
       try {
@@ -159,6 +333,15 @@ export async function runAgent(input: RunInput): Promise<RunResult> {
           turn,
           complete: input.complete,
           signal: ctx.signal,
+          check: (call) => {
+            const wantsId =
+              ELEMENT_TOOLS.has(call.name) ||
+              ((call.name === 'pressKey' || call.name === 'scroll') && call.args.id !== undefined);
+            if (wantsId && obs.snap && !targetOf(call, obs.snap)) {
+              return `Element [${String(call.args.id)}] is not in the ELEMENTS list. Use an id shown in the current ELEMENTS.`;
+            }
+            return null;
+          },
         });
       } catch (err) {
         const code = (err as { code?: string }).code;
@@ -167,6 +350,7 @@ export async function runAgent(input: RunInput): Promise<RunResult> {
           tier = lower;
           emit({ type: 'tier', tier, reason: 'the model rejected native tool calls' });
           n -= 1;
+          cached = obs;
           continue;
         }
         throw err;
@@ -175,8 +359,7 @@ export async function runAgent(input: RunInput): Promise<RunResult> {
       const d = decision.result;
       if (!d.ok) {
         failures += 1;
-        const step: StepEvent = { n, outcome: 'invalid', summary: d.error, url: obs.url };
-        emit({ type: 'step', step });
+        emit({ type: 'step', step: { n, outcome: 'invalid', summary: d.error, url: obs.url } });
         log.push(`Step ${n}: (unusable reply: ${d.error})`);
         await input.trace.write({
           runId: input.runId,
@@ -193,25 +376,143 @@ export async function runAgent(input: RunInput): Promise<RunResult> {
             `The model couldn’t produce a usable action ${failures} times in a row. Last problem: ${d.error}`,
           );
         }
+        cached = obs;
         continue;
       }
 
       const call = d.call;
-      let outcome;
-      try {
-        outcome = await executeTool(call, ctx);
-      } catch (err) {
-        if (isAbortError(err)) throw err;
-        outcome = { ok: false, summary: (err as Error).message };
+      const target = targetOf(call, obs.snap);
+      const targetName = describeTarget(target);
+
+      // Loop detection: the same action on the same thing on the same page.
+      const key = `${obs.url}|${call.name}|${target ? `${target.role}:${target.name}` : JSON.stringify(call.args)}`;
+      const count = (repeats.get(key) ?? 0) + 1;
+      repeats.set(key, count);
+      if (count >= LOOP_ABORT) {
+        return result(
+          'failed',
+          `Stopped: the agent repeated ${call.name}${targetName ? ` on ${targetName}` : ''} ${count} times without progress.`,
+        );
       }
-      const blocked = outcome.summary.startsWith('blocked:');
+      if (count >= LOOP_WARN) {
+        warning =
+          'You are repeating an action that isn’t working. Re-read the page and try a different approach.';
+        emit({ type: 'warning', message: warning });
+      }
+
+      let outcome: ToolOutcome;
+      let stepOutcome: StepEvent['outcome'];
+      const verdict = classify(call, target);
+      const exfil =
+        call.name === 'navigate' || call.name === 'newTab'
+          ? carriesData(
+              String(call.args.url),
+              hostOf(obs.url),
+              seen.filter((s) => s.host !== hostOf(String(call.args.url))).map((s) => s.text),
+            )
+          : null;
+
+      if (verdict.decision === 'refuse' || exfil) {
+        const why = exfil ?? (verdict.decision === 'refuse' ? verdict.reason : '');
+        outcome = { ok: false, summary: `blocked: ${why}` };
+        stepOutcome = 'blocked';
+      } else {
+        let approved = true;
+        if (verdict.decision === 'confirm') {
+          const request: ConfirmRequest = {
+            id: `${input.runId}:${n}`,
+            step: n,
+            reason: verdict.reason,
+            action: call.name,
+            args: call.args,
+            ...(target
+              ? {
+                  element: {
+                    role: target.role,
+                    name: target.name,
+                    ...(target.hint ? { hint: target.hint } : {}),
+                  },
+                }
+              : {}),
+            url: obs.url,
+            title: obs.title,
+          };
+          emit({ type: 'confirm', request });
+          const waitStart = now();
+          // No confirmer means no human to ask: irreversible actions are refused.
+          approved = input.confirm ? await input.confirm(request) : false;
+          // Time spent waiting for the user doesn't count against the run.
+          deadline += now() - waitStart;
+          emit({ type: 'confirmed', id: request.id, approved });
+        }
+        if (!approved) {
+          outcome = {
+            ok: false,
+            summary: `the user declined: ${verdict.decision === 'confirm' ? verdict.reason : call.name}. Don't try this again; finish or ask the user what to do instead.`,
+          };
+          stepOutcome = 'declined';
+        } else {
+          try {
+            outcome = await executeTool(call, ctx);
+          } catch (err) {
+            if (isAbortError(err)) throw err;
+            outcome = { ok: false, summary: (err as Error).message };
+          }
+          stepOutcome = outcome.ok
+            ? 'ok'
+            : outcome.summary.startsWith('blocked:')
+              ? 'blocked'
+              : 'error';
+        }
+      }
+
+      // Verify: did a page action change anything? (spec §6.3 no-op detection)
+      let afterHash: string | undefined;
+      if (
+        stepOutcome === 'ok' &&
+        ctx.page &&
+        obs.snap &&
+        !outcome.end &&
+        call.name !== 'extract' &&
+        call.name !== 'waitFor'
+      ) {
+        cached = await observe(ctx, input, target?.id);
+        afterHash = cached.snap?.hash;
+        if (
+          cached.url === obs.url &&
+          afterHash !== undefined &&
+          afterHash === obs.snap.hash &&
+          ELEMENT_TOOLS.has(call.name)
+        ) {
+          outcome = {
+            ok: false,
+            summary: `That ${call.name} produced no change. Try a different element.`,
+          };
+          stepOutcome = 'noop';
+        }
+      }
+
+      // Critique before accepting "done" (once per run).
+      if (outcome.end?.status === 'done' && prefs.critique && !critiqued) {
+        critiqued = true;
+        const verdictC = await critique(input, obs.text, outcome.end.summary);
+        if (!verdictC.complete) {
+          outcome = {
+            ok: false,
+            summary: `not finished yet (self-check: ${verdictC.reason || 'the task isn’t complete'})`,
+          };
+          stepOutcome = 'error';
+        }
+      }
+
       const step: StepEvent = {
         n,
         action: call.name,
         args: call.args,
-        outcome: outcome.ok ? 'ok' : blocked ? 'blocked' : 'error',
+        outcome: stepOutcome,
         summary: outcome.summary,
         url: obs.url,
+        ...(targetName ? { target: targetName } : {}),
         ...(call.thought ? { thought: call.thought } : {}),
         ...(decision.repaired ? { repaired: true } : {}),
       };
@@ -222,20 +523,31 @@ export async function runAgent(input: RunInput): Promise<RunResult> {
         url: obs.url,
         action: call.name,
         args: redactForTrace(call.args),
-        outcome: outcome.ok ? 'ok' : blocked ? 'blocked' : 'error',
+        ...(targetName ? { elementName: targetName } : {}),
+        ...(obs.snap ? { beforeHash: obs.snap.hash } : {}),
+        ...(afterHash ? { afterHash } : {}),
+        outcome:
+          stepOutcome === 'ok'
+            ? 'ok'
+            : stepOutcome === 'noop'
+              ? 'noop'
+              : stepOutcome === 'blocked' || stepOutcome === 'declined'
+                ? 'blocked'
+                : 'error',
         note: outcome.summary,
       });
       const data =
         outcome.data === undefined ? '' : ` ${JSON.stringify(outcome.data).slice(0, 600)}`;
-      // The model's own visible note (never hidden reasoning) is part of its memory.
       const noted =
         call.thought && call.thoughtSource === 'output'
           ? ` [noted: ${call.thought.replace(/\s+/g, ' ').slice(0, 160)}]`
           : '';
+      const on = targetName ? ` on ${targetName}` : '';
       log.push(
-        `Step ${n}: ${call.name}(${argsInline(call.args)}) → ${outcome.summary}${data}${noted}`,
+        `Step ${n}: ${call.name}(${argsInline(call.args)})${on} → ${outcome.summary}${data}${noted}`,
       );
-      pendingDigest = outcome.ok && NAVIGATING.has(call.name);
+      pendingDigest = stepOutcome === 'ok' && NAVIGATING.has(call.name);
+      if (target) lastId = target.id;
 
       if (outcome.end) {
         return result(
@@ -244,7 +556,8 @@ export async function runAgent(input: RunInput): Promise<RunResult> {
           outcome.end.result === undefined ? {} : { result: outcome.end.result },
         );
       }
-      failures = outcome.ok ? 0 : failures + 1;
+      // A declined confirmation is the user's decision, not the agent failing.
+      failures = stepOutcome === 'ok' || stepOutcome === 'declined' ? 0 : failures + 1;
       if (failures >= prefs.maxConsecutiveFailures) {
         return result('failed', `${failures} actions in a row failed. Last: ${outcome.summary}`);
       }

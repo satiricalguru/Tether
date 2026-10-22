@@ -4,6 +4,7 @@ import type { PageExtract } from '@/context/extract';
 import { estimateTokens } from '@/context/tokens';
 import { truncateToTokens } from '@/context/budget';
 import { checkUrl, normalizeAgentUrl, type DomainPolicy } from '../guard';
+import type { ActResult, PageAction, PageSnapshot, SnapshotOptions } from '../page/types';
 import type { ToolCall } from '../types';
 import type { ChatRequest } from '@/providers/types';
 
@@ -18,6 +19,15 @@ export interface AgentContext {
   /** One non-streaming model call (used by extract). */
   complete: (req: Omit<ChatRequest, 'model'>) => Promise<string>;
   tabs: TabsApi;
+  /** The page engine (Phase 5). Without it the agent is read-only. */
+  page?: PageApi;
+}
+
+export interface PageApi {
+  snapshot: (tabId: number, opts: SnapshotOptions) => Promise<PageSnapshot>;
+  act: (tabId: number, action: PageAction) => Promise<ActResult>;
+  /** Resolve once the page has settled after an action. */
+  stable: (tabId: number) => Promise<void>;
 }
 
 /** Navigation calls resolve once the new page has loaded (or the timeout passes). */
@@ -30,6 +40,55 @@ export interface TabsApi {
   ) => Promise<{ id: number; title: string; url: string; active: boolean }[]>;
   activate: (tabId: number) => Promise<void>;
   waitForLoad: (tabId: number, timeoutMs: number, signal: AbortSignal) => Promise<void>;
+  goForward?: (tabId: number, signal: AbortSignal) => Promise<void>;
+  reload?: (tabId: number, signal: AbortSignal) => Promise<void>;
+  close?: (tabId: number) => Promise<void>;
+}
+
+const PAGE_ACTIONS = new Set([
+  'click',
+  'rightClick',
+  'hover',
+  'type',
+  'clear',
+  'setValue',
+  'select',
+  'check',
+  'pressKey',
+  'scroll',
+]);
+
+/** Tool call → page-engine action (args already validated). */
+export function toPageAction(call: ToolCall): PageAction | null {
+  const a = call.args;
+  const id = typeof a.id === 'string' || typeof a.id === 'number' ? String(a.id) : undefined;
+  switch (call.name) {
+    case 'click':
+    case 'rightClick':
+    case 'hover':
+      return id ? { kind: call.name, id } : null;
+    case 'type':
+      return id ? { kind: 'type', id, text: String(a.text), ...(a.submit === true ? { submit: true } : {}) } : null;
+    case 'clear':
+      return id ? { kind: 'clear', id } : null;
+    case 'setValue':
+      return id ? { kind: 'setValue', id, value: String(a.value) } : null;
+    case 'select':
+      return id ? { kind: 'select', id, option: String(a.option) } : null;
+    case 'check':
+      return id ? { kind: 'check', id, state: a.state === true } : null;
+    case 'pressKey':
+      return { kind: 'pressKey', key: String(a.key), ...(id ? { id } : {}) };
+    case 'scroll':
+      return {
+        kind: 'scroll',
+        ...(a.direction === 'up' || a.direction === 'down' ? { direction: a.direction } : {}),
+        ...(id ? { id } : {}),
+        ...(typeof a.amount === 'number' ? { amount: a.amount } : {}),
+      };
+    default:
+      return null;
+  }
 }
 
 export interface ToolOutcome {
@@ -155,6 +214,28 @@ export async function executeTool(call: ToolCall, ctx: AgentContext): Promise<To
         ? { ok: true, summary: `"${text}" appeared` }
         : { ok: false, summary: `"${text}" did not appear within ${timeout} ms` };
     }
+    case 'forward': {
+      if (!ctx.tabs.goForward) return { ok: false, summary: 'forward is not available' };
+      await ctx.tabs.goForward(ctx.tabId, ctx.signal);
+      return { ok: true, summary: 'went forward' };
+    }
+    case 'reload': {
+      if (!ctx.tabs.reload) return { ok: false, summary: 'reload is not available' };
+      await ctx.tabs.reload(ctx.tabId, ctx.signal);
+      return { ok: true, summary: 'reloaded' };
+    }
+    case 'closeTab': {
+      const list = await ctx.tabs.list(ctx.windowId);
+      const tab = list[Number(a.index)];
+      if (!tab) return { ok: false, summary: `there is no tab ${String(a.index)}` };
+      if (list.length === 1) return { ok: false, summary: 'can’t close the last tab' };
+      await ctx.tabs.close?.(tab.id);
+      if (tab.id === ctx.tabId) {
+        const next = (await ctx.tabs.list(ctx.windowId)).find((t) => t.active) ?? list.find((t) => t.id !== tab.id);
+        if (next) ctx.tabId = next.id;
+      }
+      return { ok: true, summary: `closed "${tab.title}"` };
+    }
     case 'extract':
       return extract(ctx, a.schema);
     case 'askUser':
@@ -173,8 +254,14 @@ export async function executeTool(call: ToolCall, ctx: AgentContext): Promise<To
           ...(a.result === undefined ? {} : { result: a.result }),
         },
       };
-    default:
-      return { ok: false, summary: `"${call.name}" isn't available yet` };
+    default: {
+      const action = PAGE_ACTIONS.has(call.name) ? toPageAction(call) : null;
+      if (!action || !ctx.page) return { ok: false, summary: `"${call.name}" isn't available` };
+      const r = await ctx.page.act(ctx.tabId, action);
+      if (!r.ok) return { ok: false, summary: r.error ?? `${call.name} failed` };
+      await ctx.page.stable(ctx.tabId);
+      return { ok: true, summary: r.detail ?? `${call.name} done` };
+    }
   }
 }
 
@@ -272,6 +359,9 @@ export const browserTabs: TabsApi = {
   activate: async (tabId) => {
     await browser.tabs.update(tabId, { active: true });
   },
+  goForward: (tabId, signal) => loadAfter(() => tabId, () => browser.tabs.goForward(tabId), signal),
+  reload: (tabId, signal) => loadAfter(() => tabId, () => browser.tabs.reload(tabId), signal),
+  close: (tabId) => browser.tabs.remove(tabId),
   waitForLoad: async (tabId, timeoutMs, signal) => {
     const t = await browser.tabs.get(tabId);
     if (t.status === 'complete') return;

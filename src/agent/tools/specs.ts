@@ -99,3 +99,106 @@ export const READ_ONLY_TOOLS: ToolSpec[] = [
 export function specByName(tools: ToolSpec[], name: string): ToolSpec | undefined {
   return tools.find((t) => t.name === name);
 }
+
+const ID = { type: 'string' as const, description: 'Element id from ELEMENTS, e.g. 12 (or 3.12 inside a frame)' };
+
+/** Phase 5: the full action space (spec §6.2), except screenshot (vision tier, Phase 7). */
+export const COMPUTER_TOOLS: ToolSpec[] = [
+  ...READ_ONLY_TOOLS.filter((t) => ['navigate', 'back', 'newTab', 'switchTab'].includes(t.name)),
+  {
+    name: 'forward',
+    description: 'Go forward in the current tab.',
+    parameters: { type: 'object', properties: {} },
+  },
+  {
+    name: 'reload',
+    description: 'Reload the current page.',
+    parameters: { type: 'object', properties: {} },
+  },
+  {
+    name: 'closeTab',
+    description: 'Close a tab by its index from TABS.',
+    parameters: { type: 'object', properties: { index: { type: 'integer', minimum: 0 } }, required: ['index'] },
+  },
+  {
+    name: 'click',
+    description: 'Click an element.',
+    parameters: { type: 'object', properties: { id: ID }, required: ['id'] },
+  },
+  {
+    name: 'rightClick',
+    description: 'Right-click an element (opens its context menu).',
+    parameters: { type: 'object', properties: { id: ID }, required: ['id'] },
+  },
+  {
+    name: 'hover',
+    description: 'Move the mouse over an element (reveals menus and tooltips).',
+    parameters: { type: 'object', properties: { id: ID }, required: ['id'] },
+  },
+  {
+    name: 'type',
+    description: 'Type text into a field. submit=true presses Enter afterwards.',
+    parameters: {
+      type: 'object',
+      properties: { id: ID, text: { type: 'string' }, submit: { type: 'boolean' } },
+      required: ['id', 'text'],
+    },
+  },
+  {
+    name: 'clear',
+    description: 'Empty a text field.',
+    parameters: { type: 'object', properties: { id: ID }, required: ['id'] },
+  },
+  {
+    name: 'setValue',
+    description: 'Set a field to a value directly (dates, sliders, numbers).',
+    parameters: {
+      type: 'object',
+      properties: { id: ID, value: { type: 'string' } },
+      required: ['id', 'value'],
+    },
+  },
+  {
+    name: 'select',
+    description: 'Choose an option in a dropdown by its visible text.',
+    parameters: {
+      type: 'object',
+      properties: { id: ID, option: { type: 'string' } },
+      required: ['id', 'option'],
+    },
+  },
+  {
+    name: 'check',
+    description: 'Tick (true) or untick (false) a checkbox, radio button or switch.',
+    parameters: {
+      type: 'object',
+      properties: { id: ID, state: { type: 'boolean' } },
+      required: ['id', 'state'],
+    },
+  },
+  {
+    name: 'pressKey',
+    description: 'Press a key: Enter, Escape, Tab, ArrowDown, Ctrl+A… Optionally on an element.',
+    parameters: {
+      type: 'object',
+      properties: { key: { type: 'string' }, id: ID },
+      required: ['key'],
+    },
+  },
+  {
+    name: 'scroll',
+    description: 'Scroll the page up or down, or scroll an element into view.',
+    parameters: {
+      type: 'object',
+      properties: {
+        direction: { type: 'string', enum: ['up', 'down'] },
+        id: ID,
+        amount: { type: 'integer', minimum: 1, maximum: 10, description: 'Screens to scroll (default 1)' },
+      },
+    },
+  },
+  ...READ_ONLY_TOOLS.filter((t) => ['waitFor', 'extract', 'askUser', 'done'].includes(t.name)),
+];
+
+/** Tools whose `id` argument must exist in the current snapshot. */
+export const ELEMENT_TOOLS = new Set(['click', 'rightClick', 'hover', 'type', 'clear', 'setValue', 'select', 'check']);

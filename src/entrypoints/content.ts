@@ -1,4 +1,5 @@
 import { defineContentScript } from 'wxt/utils/define-content-script';
+import { hideBanner, showBanner } from '@/content/banner';
 import { pageHandlers } from '@/agent/page/handlers';
 import { installBubble, runtimeAlive } from '@/content/bubble';
 import { extractPage } from '@/context/extract';
@@ -57,9 +58,15 @@ export default defineContentScript({
         extractPage(document, window, maxChars === undefined ? {} : { maxChars }),
       'content:wait-text': ({ text, timeoutMs }) => waitForText(text, timeoutMs),
       ...pageHandlers(),
+      'content:agent-banner': ({ on, runId }) => {
+        if (window.top !== window) return undefined;
+        if (on) showBanner(runId);
+        else hideBanner();
+        return undefined;
+      },
     });
 
-    // Only the top frame gets a bubble; frames are read by the agent in Phase 5.
+    // Only the top frame gets a bubble (and the agent banner).
     if (window.top !== window) return;
     let bubbleOn = false;
     void getSettings().then((s) => {

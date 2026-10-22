@@ -63,7 +63,13 @@ const NEVER_FETCHED: { pattern: RegExp; reason: string; file?: RegExp }[] = [
     pattern: /^https:\/\/\$\{\w+\.replace\(\/\^$/,
     reason:
       'normalizeAgentUrl adds a scheme to a model-chosen URL for tab navigation: browsing on the user’s behalf, gated by the agent URL guard, not a request Tether makes',
-    file: /^background\.js$/,
+    file: /^(background\.js|chunks\/guard-[\w-]+\.js)$/,
+  },
+  {
+    pattern: /^https:\/\/\$\{\w+\.replace\(\/\^$/,
+    reason:
+      'the Agent settings page builds https://<domain>/ only to classify a user-entered domain with the URL guard (risky-allow warning); never fetched',
+    file: /^chunks\/options-[\w-]+\.js$/,
   },
   {
     pattern: /^http:\/\/\$\{\w+\}$/,

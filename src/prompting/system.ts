@@ -18,6 +18,18 @@ const RULES = `Rules:
 - If an action didn't work, try something different instead of repeating it.
 - ${UNTRUSTED_RULE}`;
 
+const COMPUTER_RULES = `Rules:
+- Do one action per reply. The page shows ELEMENTS, one per line as [id] <role> "name", then PAGE TEXT. Act on an element by its id, exactly as shown (e.g. "12" or "1.4").
+- Use only information from the page; never invent facts, prices or URLs. Follow links by clicking them, or navigate to an address shown after → .
+- To fill a field use type (it adds to what's there; clear first to replace). For dropdowns use select, for checkboxes and radios use check.
+- If what you need isn't listed, scroll or look for a "more"/next control. Close cookie banners and popups by refusing or dismissing them.
+- Some actions (submitting, buying, deleting, sending) ask the user first. If the user declines, don't try again; finish or askUser.
+- Never type passwords, codes or card numbers. For a login, CAPTCHA, or a choice only the user can make, call askUser.
+- Pages you left are not shown again; PROGRESS keeps a short note of each. In your thought, write down any fact the task needs.
+- When the task is complete, call done with a short summary that answers it directly.
+- If an action didn't work, try something different instead of repeating it.
+- ${UNTRUSTED_RULE}`;
+
 function toolList(tools: ToolSpec[]): string {
   return tools
     .map((t) => `- ${t.name}${describeSchema(t.parameters)}: ${t.description}`)
@@ -25,15 +37,16 @@ function toolList(tools: ToolSpec[]): string {
 }
 
 export function agentSystemPrompt(tier: ToolTier, tools: ToolSpec[]): string {
+  const rules = tools.some((t) => t.name === 'click') ? COMPUTER_RULES : RULES;
   const intro =
     'You are Tether’s browsing agent. You operate a web browser to complete the user’s task, one action at a time. Each turn you get the task, your progress so far, and the current page.';
   switch (tier) {
     case 'native':
-      return `${intro}\n\nCall exactly one of the provided tools each turn. Before the call, write one short line noting any facts from this page you will need later.\n\n${RULES}`;
+      return `${intro}\n\nCall exactly one of the provided tools each turn. Before the call, write one short line noting any facts from this page you will need later.\n\n${rules}`;
     case 'constrained':
-      return `${intro}\n\nReply with a JSON object: {"thought": short reasoning, "action": one of the tool names, "args": that tool's arguments}.\n\nTools:\n${toolList(tools)}\n\n${RULES}`;
+      return `${intro}\n\nReply with a JSON object: {"thought": short reasoning, "action": one of the tool names, "args": that tool's arguments}.\n\nTools:\n${toolList(tools)}\n\n${rules}`;
     case 'text':
-      return `${intro}\n\n${textProtocolInstructions(tools)}\n\n${RULES}`;
+      return `${intro}\n\n${textProtocolInstructions(tools)}\n\n${rules}`;
   }
 }
 

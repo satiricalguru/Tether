@@ -4,6 +4,7 @@ import { sendMessage } from '@/lib/messaging';
 import { openStream } from '@/lib/ports';
 import { getSettings, matchSiteRule } from '@/lib/settings';
 import type { Attachment } from '@/context/attachments';
+import type { AgentInput } from '@/background/agent';
 import type { AgentRunRecord, ConversationRecord, MessageRecord } from '@/lib/db';
 import { currentPageTab } from '@/platform/tabs';
 import { buildRequest } from './request';
@@ -19,6 +20,12 @@ import { useChatUi } from './ui-store';
 
 const FLUSH_MS = 250;
 const inFlight = new Map<string, { abort: () => void }>();
+const agentStreams = new Map<string, { send: (data: AgentInput) => void }>();
+
+/** Answer the confirmation an agent run is waiting on. */
+export function answerConfirmation(messageId: string, id: string, approved: boolean): void {
+  agentStreams.get(messageId)?.send({ type: 'confirm', id, approved });
+}
 
 /** Ids of replies this panel is generating (for crash recovery on open). */
 export function activeReplyIds(): Set<string> {
@@ -133,6 +140,7 @@ export async function generateReply(
     }
   } finally {
     inFlight.delete(reply.id);
+    agentStreams.delete(reply.id);
     setLive(reply.id, null);
   }
 }
@@ -194,7 +202,7 @@ export async function startAgentRun(conv: ConversationRecord, task: string): Pro
     model: conv.model,
   });
   setLive(reply.id, 'waiting');
-  const save = () => updateMessage(reply.id, { agent: { ...agent, steps: [...agent.steps] } });
+  const save = () => updateMessage(reply.id, { agent: structuredClone(agent) });
   try {
     const tab = await currentPageTab();
     if (tab?.id === undefined) throw new Error('Open the page you want the agent to start on.');
@@ -207,10 +215,29 @@ export async function startAgentRun(conv: ConversationRecord, task: string): Pro
       windowId: tab.windowId,
     });
     inFlight.set(reply.id, stream);
+    agentStreams.set(reply.id, stream);
     for await (const ev of stream) {
-      if (ev.type === 'tier') agent.tier = ev.tier;
-      else if (ev.type === 'thinking') setLive(reply.id, 'generating');
-      else agent.steps.push(ev.step);
+      switch (ev.type) {
+        case 'tier':
+          agent.tier = ev.tier;
+          break;
+        case 'thinking':
+          setLive(reply.id, 'generating');
+          break;
+        case 'step':
+          agent.steps.push(ev.step);
+          break;
+        case 'confirm':
+          agent.pendingConfirm = ev.request;
+          break;
+        case 'confirmed':
+          delete agent.pendingConfirm;
+          (agent.confirmations ??= []).push({ id: ev.id, approved: ev.approved });
+          break;
+        case 'warning':
+          (agent.warnings ??= []).push(ev.message);
+          break;
+      }
       await save();
     }
     const r = await stream.done;
@@ -231,6 +258,7 @@ export async function startAgentRun(conv: ConversationRecord, task: string): Pro
     });
   } finally {
     inFlight.delete(reply.id);
+    agentStreams.delete(reply.id);
     setLive(reply.id, null);
   }
 }

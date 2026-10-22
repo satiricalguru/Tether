@@ -3,7 +3,9 @@ import { AppProviders } from '@/components/app-providers';
 import { ProvidersSection } from '@/components/providers/providers-section';
 import { ChatSection } from '@/components/settings/chat-section';
 import { DataSection } from '@/components/settings/data-section';
+import { AgentSection } from '@/components/settings/agent-section';
 import { PageSection } from '@/components/settings/page-section';
+import { RunsSection } from '@/components/settings/runs-section';
 import { ShortcutsSection } from '@/components/settings/shortcuts-section';
 import { SiteRulesSection } from '@/components/settings/site-rules-section';
 import { Card, CardTitle } from '@/components/ui/card';
@@ -21,6 +23,8 @@ const SECTIONS: [string, string][] = [
   ['models', 'Models'],
   ['chat', 'Chat'],
   ['pages', 'Pages'],
+  ['agent', 'Agent'],
+  ['runs', 'Agent runs'],
   ['sites', 'Sites'],
   ['shortcuts', 'Shortcuts'],
   ['data', 'Data'],
@@ -68,6 +72,12 @@ function Options() {
       </Section>
       <Section id="pages" title="Pages">
         <PageSection />
+      </Section>
+      <Section id="agent" title="Agent">
+        <AgentSection />
+      </Section>
+      <Section id="runs" title="Agent runs">
+        <RunsSection />
       </Section>
       <Section id="sites" title="Sites">
         <SiteRulesSection />

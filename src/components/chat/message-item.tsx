@@ -238,7 +238,7 @@ export function MessageItem({
           )}
         </div>
       )}
-      {m.agent && <AgentRun run={m.agent} live={streaming} />}
+      {m.agent && <AgentRun run={m.agent} live={streaming} messageId={m.id} />}
       {statusText && !m.agent && (
         <p className="animate-pulse text-xs text-muted" data-testid="msg-status" data-status={live}>
           {statusText}

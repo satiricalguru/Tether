@@ -215,10 +215,18 @@ export async function decide(opts: {
   turn: ChatMessage[];
   complete: CompleteFn;
   signal: AbortSignal;
+  /** Extra check on a well-formed call (e.g. "that element id isn't on the page"); a message makes it repairable. */
+  check?: (call: ToolCall) => string | null;
 }): Promise<Decision> {
+  const judge = (c: Completion): ParseResult => {
+    const r = interpret(opts.tier, c, opts.tools);
+    if (!r.ok || !opts.check) return r;
+    const problem = opts.check(r.call);
+    return problem ? { ok: false, error: problem } : r;
+  };
   const req = buildDecisionRequest(opts.tier, opts.model, opts.tools, opts.turn);
   const first = await opts.complete(req, opts.signal);
-  const r1 = interpret(opts.tier, first, opts.tools);
+  const r1 = judge(first);
   if (r1.ok) return { result: r1, raw: [echo(first)], repaired: false };
 
   const retry: ChatStreamRequest = {
@@ -230,6 +238,6 @@ export async function decide(opts: {
     ],
   };
   const second = await opts.complete(retry, opts.signal);
-  const r2 = interpret(opts.tier, second, opts.tools);
+  const r2 = judge(second);
   return { result: r2, raw: [echo(first), echo(second)], repaired: r2.ok };
 }

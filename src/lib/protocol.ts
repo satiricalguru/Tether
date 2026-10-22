@@ -19,7 +19,7 @@ import type {
   PageSnapshot,
   SnapshotOptions,
 } from '@/agent/page/types';
-import type { AgentRunRequest } from '@/background/agent';
+import type { AgentInput, AgentRunRequest } from '@/background/agent';
 import type { ChatDone, ChatStreamEvent, ChatStreamRequest } from '@/background/chat';
 import type { Attachment } from '@/context/attachments';
 import type { PageExtract } from '@/context/extract';
@@ -77,6 +77,10 @@ export interface MessageMap {
   };
   /** Page engine: top-level viewport point for a trusted (CDP) click. */
   'content:point': { req: { id: string }; res: ElementPoint | null };
+  /** Show/hide the "Tether is controlling this tab" banner with its Stop button. */
+  'content:agent-banner': { req: { on: boolean; runId: string }; res: undefined };
+  /** From the page banner or Esc in a controlled tab. */
+  'bg:agent:stop': { req: { runId?: string }; res: { stopped: boolean } };
   'offscreen:ping': { req: undefined; res: PingResponse };
 }
 
@@ -132,6 +136,7 @@ export interface StreamMap {
     req: AgentRunRequest;
     chunk: AgentEvent;
     done: RunResult;
+    input: AgentInput;
   };
   /** One generation against a provider, with status events and metrics. */
   chat: {
@@ -145,3 +150,4 @@ export type StreamName = keyof StreamMap;
 export type StreamRequest<K extends StreamName> = StreamMap[K]['req'];
 export type StreamChunk<K extends StreamName> = StreamMap[K]['chunk'];
 export type StreamDone<K extends StreamName> = StreamMap[K]['done'];
+export type StreamInput<K extends StreamName> = StreamMap[K] extends { input: infer I } ? I : never;

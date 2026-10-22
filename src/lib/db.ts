@@ -1,6 +1,6 @@
 import Dexie, { type EntityTable } from 'dexie';
 import type { ChatMetrics } from '@/background/chat';
-import type { RunStatus, StepEvent } from '@/agent/loop';
+import type { ConfirmRequest, RunStatus, StepEvent } from '@/agent/loop';
 import type { ToolTier } from '@/agent/types';
 import type { Attachment } from '@/context/attachments';
 
@@ -40,6 +40,10 @@ export interface AgentRunRecord {
   tier?: ToolTier;
   steps: StepEvent[];
   result?: unknown;
+  /** An irreversible action waiting for the user's decision. */
+  pendingConfirm?: ConfirmRequest;
+  confirmations?: { id: string; approved: boolean }[];
+  warnings?: string[];
 }
 
 export type MessageRole = 'system' | 'user' | 'assistant' | 'tool';
