@@ -19,7 +19,11 @@ export async function debuggerAvailable(): Promise<boolean> {
   }
 }
 
-async function send(tabId: number, method: string, params: Record<string, unknown> = {}): Promise<unknown> {
+async function send(
+  tabId: number,
+  method: string,
+  params: Record<string, unknown> = {},
+): Promise<unknown> {
   if (!attached.has(tabId)) {
     await browser.debugger.attach({ tabId }, VERSION);
     attached.add(tabId);
@@ -42,13 +46,31 @@ browser.debugger?.onDetach.addListener((source) => {
   if (source.tabId !== undefined) attached.delete(source.tabId);
 });
 
-export async function cdpMouse(tabId: number, p: ElementPoint, kind: 'click' | 'rightClick' | 'hover'): Promise<void> {
+export async function cdpMouse(
+  tabId: number,
+  p: ElementPoint,
+  kind: 'click' | 'rightClick' | 'hover',
+): Promise<void> {
   await send(tabId, 'Input.dispatchMouseEvent', { type: 'mouseMoved', x: p.x, y: p.y });
   if (kind === 'hover') return;
   const button = kind === 'rightClick' ? 'right' : 'left';
   const buttons = kind === 'rightClick' ? 2 : 1;
-  await send(tabId, 'Input.dispatchMouseEvent', { type: 'mousePressed', x: p.x, y: p.y, button, buttons, clickCount: 1 });
-  await send(tabId, 'Input.dispatchMouseEvent', { type: 'mouseReleased', x: p.x, y: p.y, button, buttons: 0, clickCount: 1 });
+  await send(tabId, 'Input.dispatchMouseEvent', {
+    type: 'mousePressed',
+    x: p.x,
+    y: p.y,
+    button,
+    buttons,
+    clickCount: 1,
+  });
+  await send(tabId, 'Input.dispatchMouseEvent', {
+    type: 'mouseReleased',
+    x: p.x,
+    y: p.y,
+    button,
+    buttons: 0,
+    clickCount: 1,
+  });
 }
 
 export async function cdpInsertText(tabId: number, text: string): Promise<void> {
@@ -83,10 +105,23 @@ export async function cdpKey(tabId: number, combo: string): Promise<boolean> {
     else if (m === 'meta' || m === 'cmd' || m === 'command') modifiers |= 4;
     else if (m === 'shift') modifiers |= 8;
   }
-  const k = KEYS[name] ?? (name.length === 1 ? { key: name, code: `Key${name.toUpperCase()}`, keyCode: name.toUpperCase().charCodeAt(0), text: name } : undefined);
+  const k =
+    KEYS[name] ??
+    (name.length === 1
+      ? {
+          key: name,
+          code: `Key${name.toUpperCase()}`,
+          keyCode: name.toUpperCase().charCodeAt(0),
+          text: name,
+        }
+      : undefined);
   if (!k) return false;
   const base = { key: k.key, code: k.code, windowsVirtualKeyCode: k.keyCode, modifiers };
-  await send(tabId, 'Input.dispatchKeyEvent', { type: k.text && !modifiers ? 'keyDown' : 'rawKeyDown', ...base, ...(k.text && !modifiers ? { text: k.text } : {}) });
+  await send(tabId, 'Input.dispatchKeyEvent', {
+    type: k.text && !modifiers ? 'keyDown' : 'rawKeyDown',
+    ...base,
+    ...(k.text && !modifiers ? { text: k.text } : {}),
+  });
   await send(tabId, 'Input.dispatchKeyEvent', { type: 'keyUp', ...base });
   return true;
 }

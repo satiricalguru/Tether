@@ -68,7 +68,9 @@ export function toPageAction(call: ToolCall): PageAction | null {
     case 'hover':
       return id ? { kind: call.name, id } : null;
     case 'type':
-      return id ? { kind: 'type', id, text: String(a.text), ...(a.submit === true ? { submit: true } : {}) } : null;
+      return id
+        ? { kind: 'type', id, text: String(a.text), ...(a.submit === true ? { submit: true } : {}) }
+        : null;
     case 'clear':
       return id ? { kind: 'clear', id } : null;
     case 'setValue':
@@ -231,7 +233,9 @@ export async function executeTool(call: ToolCall, ctx: AgentContext): Promise<To
       if (list.length === 1) return { ok: false, summary: 'can’t close the last tab' };
       await ctx.tabs.close?.(tab.id);
       if (tab.id === ctx.tabId) {
-        const next = (await ctx.tabs.list(ctx.windowId)).find((t) => t.active) ?? list.find((t) => t.id !== tab.id);
+        const next =
+          (await ctx.tabs.list(ctx.windowId)).find((t) => t.active) ??
+          list.find((t) => t.id !== tab.id);
         if (next) ctx.tabId = next.id;
       }
       return { ok: true, summary: `closed "${tab.title}"` };
@@ -359,8 +363,18 @@ export const browserTabs: TabsApi = {
   activate: async (tabId) => {
     await browser.tabs.update(tabId, { active: true });
   },
-  goForward: (tabId, signal) => loadAfter(() => tabId, () => browser.tabs.goForward(tabId), signal),
-  reload: (tabId, signal) => loadAfter(() => tabId, () => browser.tabs.reload(tabId), signal),
+  goForward: (tabId, signal) =>
+    loadAfter(
+      () => tabId,
+      () => browser.tabs.goForward(tabId),
+      signal,
+    ),
+  reload: (tabId, signal) =>
+    loadAfter(
+      () => tabId,
+      () => browser.tabs.reload(tabId),
+      signal,
+    ),
   close: (tabId) => browser.tabs.remove(tabId),
   waitForLoad: async (tabId, timeoutMs, signal) => {
     const t = await browser.tabs.get(tabId);

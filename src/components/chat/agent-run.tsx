@@ -116,9 +116,15 @@ function ConfirmCard({ run, messageId }: { run: AgentRunRecord; messageId: strin
     // keep the raw URL
   }
   return (
-    <div className="mt-2 rounded-md border border-warn/50 bg-warn/10 p-2 text-xs" role="alertdialog" aria-label="Confirm agent action" data-testid="agent-confirm">
+    <div
+      className="mt-2 rounded-md border border-warn/50 bg-warn/10 p-2 text-xs"
+      role="alertdialog"
+      aria-label="Confirm agent action"
+      data-testid="agent-confirm"
+    >
       <p className="flex items-center gap-1.5 font-medium text-fg">
-        <ShieldAlert className="size-3.5 text-warn" /> The agent wants to do something that can’t be undone
+        <ShieldAlert className="size-3.5 text-warn" /> The agent wants to do something that can’t be
+        undone
       </p>
       <p className="mt-1 text-fg" data-testid="agent-confirm-reason">
         {c.reason}
@@ -132,10 +138,18 @@ function ConfirmCard({ run, messageId }: { run: AgentRunRecord; messageId: strin
         Page: {c.title || host} · {host}
       </p>
       <div className="mt-2 flex gap-2">
-        <Button size="sm" variant="danger" onClick={() => answerConfirmation(messageId, c.id, true)}>
+        <Button
+          size="sm"
+          variant="danger"
+          onClick={() => answerConfirmation(messageId, c.id, true)}
+        >
           Allow once
         </Button>
-        <Button size="sm" variant="outline" onClick={() => answerConfirmation(messageId, c.id, false)}>
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={() => answerConfirmation(messageId, c.id, false)}
+        >
           Don’t allow
         </Button>
       </div>
@@ -143,7 +157,15 @@ function ConfirmCard({ run, messageId }: { run: AgentRunRecord; messageId: strin
   );
 }
 
-export function AgentRun({ run, live, messageId }: { run: AgentRunRecord; live: boolean; messageId: string }) {
+export function AgentRun({
+  run,
+  live,
+  messageId,
+}: {
+  run: AgentRunRecord;
+  live: boolean;
+  messageId: string;
+}) {
   const running = run.status === 'running';
   const allSites = useAllSites();
   const hitWall = run.steps.some((s) =>
@@ -190,7 +212,10 @@ export function AgentRun({ run, live, messageId }: { run: AgentRunRecord; live: 
       </ol>
       {live && <ConfirmCard run={run} messageId={messageId} />}
       {run.warnings && run.warnings.length > 0 && (
-        <p className="mt-1 flex items-center gap-1 text-[11px] text-warn" data-testid="agent-warning">
+        <p
+          className="mt-1 flex items-center gap-1 text-[11px] text-warn"
+          data-testid="agent-warning"
+        >
           <AlertTriangle className="size-3" /> {run.warnings.at(-1)}
         </p>
       )}

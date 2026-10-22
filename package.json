@@ -23,7 +23,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "e2e": "wxt build && playwright test",
-    "check": "pnpm lint && pnpm typecheck && pnpm test && pnpm build && pnpm test:bundle",
+    "check": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test && pnpm build && pnpm test:bundle",
     "mock-llm": "node --experimental-strip-types tests/fixtures/mock-llm/cli.ts",
     "test:bundle": "vitest run --config vitest.bundle.config.ts",
     "e2e:real": "wxt build && TETHER_REAL_OLLAMA=1 playwright test real-ollama",

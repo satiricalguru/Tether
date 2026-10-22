@@ -39,17 +39,24 @@ const OUTCOME_CLASS: Record<TraceRecord['outcome'], string> = {
 export function RunsSection() {
   const traces = useLiveQuery(() => getDb().traces.toArray(), []);
   const runs = groupRuns(traces ?? []);
-  const [open, setOpen] = useState<string | null>(() => (location.hash.startsWith('#runs:') ? location.hash.slice(6) : null));
+  const [open, setOpen] = useState<string | null>(() =>
+    location.hash.startsWith('#runs:') ? location.hash.slice(6) : null,
+  );
 
   const exportRun = (r: RunSummary) => {
-    downloadText(`tether-run-${r.runId.slice(0, 8)}.json`, JSON.stringify({ format: 'tether.trace.v1', runId: r.runId, steps: r.steps }, null, 2), 'application/json');
+    downloadText(
+      `tether-run-${r.runId.slice(0, 8)}.json`,
+      JSON.stringify({ format: 'tether.trace.v1', runId: r.runId, steps: r.steps }, null, 2),
+      'application/json',
+    );
   };
 
   return (
     <Card>
       <CardTitle>Agent runs</CardTitle>
       <p className="mb-3 text-xs text-muted">
-        Each step the agent took: action, element, page, outcome, and whether the page changed. Stored only in this browser.
+        Each step the agent took: action, element, page, outcome, and whether the page changed.
+        Stored only in this browser.
       </p>
       {runs.length === 0 && <p className="text-xs text-muted">No agent runs yet.</p>}
       <ul className="divide-y divide-border" data-testid="runs">
@@ -67,9 +74,15 @@ export function RunsSection() {
                     setOpen(isOpen ? null : r.runId);
                   }}
                 >
-                  {new Date(r.started).toLocaleString()} · {r.steps.length} steps · ended with {last?.action ?? '—'}
+                  {new Date(r.started).toLocaleString()} · {r.steps.length} steps · ended with{' '}
+                  {last?.action ?? '—'}
                 </button>
-                <Button size="icon" variant="ghost" aria-label="Export run as JSON" onClick={() => exportRun(r)}>
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  aria-label="Export run as JSON"
+                  onClick={() => exportRun(r)}
+                >
                   <Download />
                 </Button>
                 <Button
@@ -93,20 +106,33 @@ export function RunsSection() {
                   </thead>
                   <tbody>
                     {r.steps.map((s) => (
-                      <tr key={s.id} className="border-t border-border align-top" data-testid="run-step">
+                      <tr
+                        key={s.id}
+                        className="border-t border-border align-top"
+                        data-testid="run-step"
+                      >
                         <td className="py-1">{s.step}</td>
                         <td className="py-1 font-mono break-all">
                           {s.action}
-                          {s.elementName && <span className="block text-muted">{s.elementName}</span>}
+                          {s.elementName && (
+                            <span className="block text-muted">{s.elementName}</span>
+                          )}
                         </td>
                         <td className="py-1">
-                          <span className={cn('font-medium', OUTCOME_CLASS[s.outcome])}>{s.outcome}</span> {s.note}
+                          <span className={cn('font-medium', OUTCOME_CLASS[s.outcome])}>
+                            {s.outcome}
+                          </span>{' '}
+                          {s.note}
                           <span className="block truncate text-muted" title={s.url}>
                             {s.url}
                           </span>
                         </td>
                         <td className="py-1 text-muted">
-                          {s.beforeHash && s.afterHash ? (s.beforeHash === s.afterHash ? 'no' : 'yes') : '—'}
+                          {s.beforeHash && s.afterHash
+                            ? s.beforeHash === s.afterHash
+                              ? 'no'
+                              : 'yes'
+                            : '—'}
                         </td>
                       </tr>
                     ))}
@@ -122,7 +148,13 @@ export function RunsSection() {
           <Button
             size="sm"
             variant="outline"
-            onClick={() => downloadText('tether-traces.json', JSON.stringify({ format: 'tether.trace.v1', runs }, null, 2), 'application/json')}
+            onClick={() =>
+              downloadText(
+                'tether-traces.json',
+                JSON.stringify({ format: 'tether.trace.v1', runs }, null, 2),
+                'application/json',
+              )
+            }
           >
             <Download /> Export all
           </Button>

@@ -25,7 +25,7 @@ or the keyboard.
   the last action, viewport centrality and words shared with the task, and
   reports what was dropped.
 - **Actions**: realistic event sequences (`pointerdown → mousedown → focus
-  → pointerup → mouseup → click`; per-character `beforeinput`/`input`
+→ pointerup → mouseup → click`; per-character `beforeinput`/`input`
   using the native value setter, so React and Vue controlled inputs
   update). Elements are scrolled into view and briefly outlined.
 - **Stability**: after an action, wait until the DOM has been quiet for
@@ -35,18 +35,18 @@ or the keyboard.
 
 - **Tools**: the full §6.2 set except `screenshot`, which is Phase 7's
   vision tier.
-- **Two input backends**: *scripting* (default, through the page engine)
-  and *debugger* (optional `debugger` permission; CDP
+- **Two input backends**: _scripting_ (default, through the page engine)
+  and _debugger_ (optional `debugger` permission; CDP
   `Input.dispatchMouseEvent` / `insertText` at the element's coordinates,
   for sites that check `isTrusted`). The UI explains the "being debugged"
   bar before enabling it.
 - **Guard tiers** (spec §6.6):
-  - *read* (snapshot, scroll, extract, waitFor) and *navigate* (links,
+  - _read_ (snapshot, scroll, extract, waitFor) and _navigate_ (links,
     tabs, ordinary buttons) run automatically within the domain policy.
-  - *write* (type, select, check) runs automatically, but never into
+  - _write_ (type, select, check) runs automatically, but never into
     password, one-time-code or card fields; card, SSN and token patterns are
     redacted from traces.
-  - *irreversible* (form submits, submit-on-type, Enter in a form, buttons
+  - _irreversible_ (form submits, submit-on-type, Enter in a form, buttons
     matching buy/purchase/pay/delete/remove/send/confirm/transfer/
     unsubscribe/post/publish, downloads) **always waits for the user's
     confirmation**, which shows the exact element and page.

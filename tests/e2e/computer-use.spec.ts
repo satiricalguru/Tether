@@ -65,7 +65,8 @@ test.describe('agent (computer use)', () => {
             return call('done', { summary: 'The order was not placed.' });
           }
           const place = idOf(body, 'Place order');
-          if (place && pageUrl(body).endsWith('/checkout/review.html')) return call('click', { id: place });
+          if (place && pageUrl(body).endsWith('/checkout/review.html'))
+            return call('click', { id: place });
           return undefined;
         },
       });
