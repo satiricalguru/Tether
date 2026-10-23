@@ -12,25 +12,53 @@ telemetry.
 Works with Ollama, LM Studio, llama.cpp server and any OpenAI-compatible
 local server (vLLM, LocalAI, Jan, KoboldCpp, TabbyAPI, ...).
 
-> **Status: Phase 6 (RAG, inline compose, prompt library).** Chat, page
-> context, highlight-to-ask and the computer-use agent work, and so do these:
->
-> - Long pages are answered from their most relevant parts.
-> - **Cmd/Ctrl+K** in any text field rewrites or drafts text.
-> - **/commands** run prompts from your own library.
->
-> Vision, Firefox and packaging come next. See [Roadmap](#roadmap).
+![Tether: the agent fills a search form, asks before submitting it, then answers](docs/images/demo.gif)
 
-## Getting started
+## Install
 
-1. Run a local model server, for example [Ollama](https://ollama.com):
-   `ollama serve` and `ollama pull llama3.2`.
-2. Load Tether (see [Development](#development)) and open the side panel.
-3. If the **Setup Doctor** says _Blocked by origin check_, copy the command
-   it shows. It includes your extension ID. Ollama rejects browser
-   extensions until `OLLAMA_ORIGINS` allows them.
-4. Pick a model and chat. Each reply's footer shows time to first token,
-   tokens/s, prompt tokens, context used and model load time.
+1. **Get a local model.** With [Ollama](https://ollama.com): `ollama pull
+llama3.2:3b`. For long pages, also `ollama pull nomic-embed-text`. LM
+   Studio, llama.cpp server and other OpenAI-compatible servers work too.
+2. **Load Tether.**
+   - **Chrome, Edge, Brave, Arc:** unzip `tether-<version>-chrome.zip`
+     (from `pnpm release`, or a release page). Then go to
+     `chrome://extensions`, turn on **Developer mode**, click **Load
+     unpacked**, and pick the folder.
+   - **Firefox 128+:** open `about:debugging#/runtime/this-firefox` →
+     **Load Temporary Add-on…** and pick `tether-<version>-firefox.zip`. A
+     signed build is needed for a permanent install.
+3. **Let Ollama talk to the extension.** Open the panel (toolbar button or
+   **Ctrl/Cmd+Shift+L**). If the **Setup Doctor** says _Blocked by origin
+   check_, copy the one-line command it shows for your OS. It includes your
+   extension's ID. Then restart Ollama.
+
+![Setup Doctor showing the exact fix for a blocked origin](docs/images/setup-doctor.png)
+
+### Your first two minutes
+
+1. **Chat about a page.** Open any article, open the panel, switch on
+   **This page**, and ask a question. The answer streams with its timing
+   (time to first token, tokens/s, context used).
+2. **Highlight to ask.** Select a sentence on the page and pick
+   **Explain** in the bubble that appears. (Allow the site, or all sites,
+   when asked; Tether only reads pages you let it.)
+3. **Rewrite in place.** Click into any text box, press **Cmd/Ctrl+K**,
+   and pick **Shorten** or a tone. Check the diff, then **Accept**.
+4. **Run an agent task.** Switch on **Agent** and type _"search this site
+   for headphones and tell me the cheapest in stock"_. Tether fills in the
+   form, stops to ask before submitting anything, and answers. Every step
+   is in _Settings → Agent runs_.
+
+| Chat with page context                                                      | Highlight to ask                                                           | Inline compose                                                    |
+| --------------------------------------------------------------------------- | -------------------------------------------------------------------------- | ----------------------------------------------------------------- |
+| ![Chat answering from the attached page](docs/images/chat-page-context.png) | ![Highlight bubble explaining a heading](docs/images/highlight-bubble.png) | ![Cmd+K rewrite with a word diff](docs/images/inline-compose.png) |
+
+| Agent asks first                                                             | Agent done                                                     | Step trace                                                      |
+| ---------------------------------------------------------------------------- | -------------------------------------------------------------- | --------------------------------------------------------------- |
+| ![The agent pausing before submitting a form](docs/images/agent-confirm.png) | ![The finished run and its answer](docs/images/agent-done.png) | ![Trace viewer listing each step](docs/images/trace-viewer.png) |
+
+_Screenshots are taken by `pnpm docs:media` against the mock model server,
+so the timings shown in them aren't real._
 
 ### Chat features
 
@@ -148,6 +176,15 @@ step appears live in the chat and is recorded in a local trace.
 
 The full safety model is in [docs/safety.md](docs/safety.md).
 
+**Screenshots for vision models (opt-in).** If your model can see images
+(Qwen2.5-VL, Llama 3.2 Vision, MiniCPM-V, Gemma 3 and others), turn on
+_Settings → Agent → Show the model screenshots_. Each step then also sends
+one screenshot of the visible tab, scaled to at most 1024 px. Numbered boxes
+are drawn on the same element ids the text list uses. The model still
+answers with an id, and Tether never clicks coordinates a model makes up.
+This costs prompt time, about 800 tokens a step, and needs all-sites
+access to capture tabs. Pages that can't be captured fall back to text.
+
 - **Works with any local model.** Tether picks how to talk to it: _native_
   tool calls if the model supports them, _constrained_ JSON (a grammar or JSON
   schema) if the server supports that, or a _text_ protocol with a tolerant
@@ -262,7 +299,7 @@ All code is bundled; nothing is loaded from a CDN, and the extension CSP
 ## Development
 
 Requirements: Node 20+, pnpm (via `corepack enable pnpm`), Chrome/Chromium
-120+.
+120+ (and Firefox 128+ for the Firefox build).
 
 ```sh
 pnpm install          # also runs `wxt prepare` to generate types
@@ -271,6 +308,8 @@ pnpm dev:firefox      # Firefox (MV3)
 pnpm build            # production build → .output/chrome-mv3
 pnpm build:firefox    # → .output/firefox-mv3
 pnpm zip              # store-ready zip
+pnpm release          # Chrome + Firefox zips, bundle checks, SHA256SUMS
+pnpm docs:media       # README screenshots and demo GIF (needs ffmpeg for the GIF)
 ```
 
 Load the unpacked build manually: `chrome://extensions` → Developer mode →
@@ -321,12 +360,14 @@ src/
   context/       page extraction, injection scanner, token budget, PDFs
   content/       highlight bubble, inline compose and agent banner (run in pages)
   agent/         tool harness, agent loop, tools, action tiers, url guard,
-                 traces; page/ is the page engine (snapshots, actions)
+                 traces; page/ is the page engine (snapshots, actions),
+                 vision/ the set-of-marks screenshots
   prompting/     prompts, tolerant tool-call parser, grammars
   rag/           chunking, vectors, retrieval fitting (embeddings in background/rag.ts)
   compose/       word diff and the compose prompt
   prompts/       prompt library and slash-command templates
-  platform/      shims for browser-specific APIs (sidePanel, offscreen)
+  platform/      shims for browser-specific APIs (side panel/sidebar, offscreen, debugger)
+  offscreen/     handlers for canvas work (offscreen document, or Firefox's background page)
   components/ui/ vendored shadcn-style primitives
   hooks/         React hooks
 tests/
@@ -366,4 +407,4 @@ DECISIONS.md     assumptions and architecture decisions
 | 4     | Three-tier tool calling, fallback parser, grammars               | ✅     |
 | 5     | Computer use: observation, actions, guard rails, traces          | ✅     |
 | 6     | Local RAG, inline compose, prompt library                        | ✅     |
-| 7     | Vision tier, Firefox, packaging                                  | —      |
+| 7     | Vision tier, Firefox, packaging                                  | ✅     |

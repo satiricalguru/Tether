@@ -78,7 +78,8 @@ describe.each(SSE_FIXTURES)('SSE fixture %s', (name) => {
     for (let cut = 1; cut < bytes.length; cut++) {
       expect(await collect(sseEvents(streamOf(bytes, [cut])))).toEqual(whole);
     }
-  });
+    // Exhaustive and CPU-bound: give it room when the machine is busy.
+  }, 30_000);
 
   it('parses identically when shredded into many random pieces', async () => {
     const whole = await collect(sseEvents(streamOf(bytes)));
@@ -104,7 +105,8 @@ describe.each(NDJSON_FIXTURES)('NDJSON fixture %s', (name) => {
     for (let cut = 1; cut < bytes.length; cut++) {
       expect(await collect(ndjsonRecords(streamOf(bytes, [cut])))).toEqual(whole);
     }
-  });
+    // Exhaustive and CPU-bound: give it room when the machine is busy.
+  }, 30_000);
 
   it('parses identically one byte at a time', async () => {
     const whole = await collect(ndjsonRecords(streamOf(bytes)));

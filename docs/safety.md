@@ -102,7 +102,26 @@ the optional `debugger` permission. While it's in use, Chrome shows its own
 "started debugging this browser" bar, and cancelling that bar also stops
 trusted input. All the rules above apply unchanged.
 
-## 8. Known limits
+## 8. Screenshots (vision models, optional)
+
+With _Show the model screenshots_ on and a vision model, each step also
+sends one screenshot of the visible tab to your local model. Numbered
+boxes are drawn on the elements the text list already names. The rules
+above don't change:
+
+- **Actions still target element ids**, which are checked against the live
+  page. Pixel coordinates from a model are never used.
+- **Screenshots go only to the model you configured.** Only the current
+  step's image is sent; earlier steps never carry one. Traces keep a small
+  thumbnail locally.
+- **Capturing tabs needs all-sites access**, asked for when you switch this
+  on. Without it, only the tab Tether was opened from can be captured.
+  Pages that can't be captured (browser pages, PDFs) fall back to text.
+- **A screenshot shows whatever is on screen**, including text that the
+  text view would leave out as hidden. Keep it off on pages you wouldn't
+  paste into a chat.
+
+## 9. Known limits
 
 - Removing an item from a cart or list isn't treated as irreversible,
   because it's easy to undo. Deleting is.

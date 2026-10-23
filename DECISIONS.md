@@ -655,3 +655,58 @@ nothing and merge by command.
 
 None. The word diff is a small LCS, and the vectors are plain arrays with
 cosine and MMR.
+
+## Phase 7 — Vision tier, Firefox, packaging
+
+### ADR-063 Vision adds a picture; ids stay the action space
+
+The vision tier doesn't add pixel actions. Each step's screenshot carries
+set-of-marks boxes labelled with the same element ids as the text list,
+and the turn text tells the model to answer with ids. The harness never
+reads coordinates. One image goes on the current turn only (about 800
+tokens at 1,024 px, counted in the budget). Earlier turns never carry
+images. Compositing runs in the offscreen document on Chromium and in the
+background page on Firefox, through `callOffscreen`. The tier is off by
+default: on a 16 GB laptop an image per step costs more than it gains for
+most tasks. If capture fails, the run warns once and continues on text. If
+the model rejects images, they stop for the rest of the run and the step is
+retried.
+
+### ADR-064 Firefox degrades through platform shims, never branches in features
+
+Every Chromium-only API (sidePanel, offscreen, debugger,
+`runtime.getContexts`) is behind `src/platform/*`. Features call the shim
+and never check the browser themselves.
+
+- **Side panel:** becomes `sidebar_action`, toggled from the toolbar click.
+- **Offscreen:** work runs in place in the background page.
+- **Debugger backend:** hidden, with a one-line explanation.
+
+`strict_min_version` is 128 (install-time host permissions in MV3,
+`storage.session`, `scripting`). The Firefox build and its manifest and
+egress tests take about a second, so they're part of `pnpm check` and CI.
+There's no Firefox E2E: Playwright can't load Firefox extensions.
+
+### ADR-065 Release artefacts are reproducible and checked
+
+`pnpm release` zips both targets and runs the bundle tests on each: the
+egress scan, and the manifest checks on Firefox. It writes `SHA256SUMS`;
+WXT adds a sources zip for Firefox add-on review. README screenshots and
+the demo GIF come from `pnpm docs:media`, a Playwright script against the
+mock server, so they can be regenerated after any UI change. ffmpeg is a
+dev-only tool for the GIF, not a dependency. The icon is a plain SVG
+rendered to 16/32/48/128 PNGs.
+
+### ADR-066 Small-model fixes from the second model
+
+The first runs with llama3.2:3b showed two harness gaps, both fixed.
+Text-tier calls written as `click(id: "4")` are now read like
+`click(id="4")`. Origin-less paths such as `shop/granite.html` now
+resolve against the current page, instead of becoming the host `shop`.
+Separately, embedding requests now carry each retrieval model's own task
+prefixes (nomic's `search_document:` / `search_query:`, embeddinggemma's),
+as their model cards require.
+
+### ADR-067 Dependencies added in Phase 7
+
+None.
