@@ -436,3 +436,7 @@ DECISIONS.md     assumptions and architecture decisions
 | 5     | Computer use: observation, actions, guard rails, traces          | ✅     |
 | 6     | Local RAG, inline compose, prompt library                        | ✅     |
 | 7     | Vision tier, Firefox, packaging                                  | ✅     |
+
+## License
+
+[MIT](LICENSE) © 2026 Jatin Pandey
