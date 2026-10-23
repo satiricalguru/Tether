@@ -5,7 +5,8 @@ import { installBubble, runtimeAlive } from '@/content/bubble';
 import { deepActiveElement, installCompose } from '@/content/compose';
 import { extractPage } from '@/context/extract';
 import { registerHandlers } from '@/lib/messaging';
-import { getSettings, watchSettings } from '@/lib/settings';
+import { getSettings, watchSettings, type Theme } from '@/lib/settings';
+import { setPageTheme } from '@/content/theme';
 
 /**
  * DOM bridge. Never declared for all sites in the manifest: it's injected on
@@ -55,9 +56,10 @@ export default defineContentScript({
 
     let bubbleOn = false;
     let composeOn = false;
-    const apply = (s: { page: { bubble: boolean; compose: boolean } }) => {
+    const apply = (s: { theme: Theme; page: { bubble: boolean; compose: boolean } }) => {
       bubbleOn = s.page.bubble;
       composeOn = s.page.compose;
+      setPageTheme(s.theme);
     };
     void getSettings().then(apply);
     watchSettings(apply);

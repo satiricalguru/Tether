@@ -2,6 +2,7 @@ import { browser } from 'wxt/browser';
 import { TETHER_UI_ATTRIBUTE } from '@/context/extract';
 import { sendMessage } from '@/lib/messaging';
 import { openStream, type StreamHandle } from '@/lib/ports';
+import { darkRule, themeHost } from './theme';
 import { QUICK_ACTIONS, type QuickAction } from '@/prompting/actions';
 
 /**
@@ -15,13 +16,13 @@ const STYLE = `
 :host { all: initial; }
 * { box-sizing: border-box; }
 .wrap { position: fixed; z-index: 2147483647; font: 13px/1.45 ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
-  color: #1c1c1a; --bg: #ffffff; --bd: #e3e3df; --mut: #6b6b66; --acc: #3d5afe; --s2: #f2f2f0; }
-@media (prefers-color-scheme: dark) { .wrap { color: #ececea; --bg: #1c1c1b; --bd: #34342f; --mut: #9a9a93; --acc: #7b8cff; --s2: #262624; } }
+  color: #0d0d0d; --bg: #ffffff; --bd: #e5e5e5; --mut: #5d5d5d; --acc: #0d0d0d; --accfg: #ffffff; --s2: #f4f4f4; }
+${darkRule('.wrap', 'color: #ececec; --bg: #2f2f2f; --bd: #424242; --mut: #b4b4b4; --acc: #ececec; --accfg: #0d0d0d; --s2: #3a3a3a;')}
 .bar { display: flex; gap: 2px; padding: 3px; background: var(--bg); border: 1px solid var(--bd); border-radius: 10px;
   box-shadow: 0 6px 24px rgba(0,0,0,.18); }
 button { all: unset; cursor: pointer; padding: 4px 8px; border-radius: 7px; font-size: 12px; color: inherit; white-space: nowrap; }
 button:hover, button:focus-visible { background: var(--s2); }
-button.primary { background: var(--acc); color: #fff; }
+button.primary { background: var(--acc); color: var(--accfg); }
 .logo { padding: 4px 6px; font-weight: 600; color: var(--acc); }
 .card { margin-top: 6px; width: min(420px, calc(100vw - 24px)); max-height: 50vh; display: flex; flex-direction: column;
   background: var(--bg); border: 1px solid var(--bd); border-radius: 12px; box-shadow: 0 10px 32px rgba(0,0,0,.22); }
@@ -48,6 +49,7 @@ export interface BubbleOptions {
 export function installBubble(opts: BubbleOptions): () => void {
   const host = document.createElement('tether-bubble');
   host.setAttribute(TETHER_UI_ATTRIBUTE, '');
+  const releaseTheme = themeHost(host);
   const root = host.attachShadow({ mode: 'closed' });
   const style = document.createElement('style');
   style.textContent = STYLE;
@@ -229,6 +231,7 @@ export function installBubble(opts: BubbleOptions): () => void {
     document.removeEventListener('mousedown', onMouseDown, true);
     document.removeEventListener('keydown', onKey, true);
     host.remove();
+    releaseTheme();
   };
 }
 

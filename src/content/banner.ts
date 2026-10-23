@@ -16,7 +16,7 @@ const STYLE = `
   display: flex; align-items: center; gap: 10px; padding: 6px 8px 6px 12px; border-radius: 999px;
   background: #1c1c1a; color: #fff; font: 12px/1.3 ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
   box-shadow: 0 6px 24px rgba(0,0,0,.25); pointer-events: auto; }
-.dot { width: 8px; height: 8px; border-radius: 50%; background: #7b8cff; animation: pulse 1.2s infinite; }
+.dot { width: 8px; height: 8px; border-radius: 50%; background: #ececec; animation: pulse 1.2s infinite; }
 @keyframes pulse { 50% { opacity: .35; } }
 button { all: unset; cursor: pointer; padding: 4px 10px; border-radius: 999px; background: #c62828; color: #fff; font-weight: 600; }
 button:focus-visible { outline: 2px solid #fff; }

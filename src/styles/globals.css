@@ -1,7 +1,8 @@
 @import 'tailwindcss';
 
 /*
- * Design tokens. Components reference semantic colors (bg-surface, text-fg,
+ * Design tokens: a neutral, monochrome palette (accent = near-black in light,
+ * near-white in dark). Components reference semantic colors (bg-surface, text-fg,
  * ...) so theming is a token swap. `data-theme` on <html> is set from
  * settings; "system" leaves it unset and follows prefers-color-scheme.
  */
@@ -27,52 +28,52 @@
 }
 
 :root {
-  --t-bg: #fbfbfa;
+  --t-bg: #ffffff;
   --t-surface: #ffffff;
-  --t-surface-2: #f2f2f0;
-  --t-border: #e3e3df;
-  --t-fg: #1c1c1a;
-  --t-muted: #6b6b66;
-  --t-accent: #3d5afe;
+  --t-surface-2: #f4f4f4;
+  --t-border: #e5e5e5;
+  --t-fg: #0d0d0d;
+  --t-muted: #5d5d5d;
+  --t-accent: #0d0d0d;
   --t-accent-fg: #ffffff;
   --t-ok: #1f8a4c;
   --t-warn: #b26a00;
   --t-danger: #c62828;
-  --t-ring: #3d5afe66;
+  --t-ring: #0d0d0d33;
   color-scheme: light;
 }
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme='light']) {
-    --t-bg: #141413;
-    --t-surface: #1c1c1b;
-    --t-surface-2: #262624;
-    --t-border: #34342f;
-    --t-fg: #ececea;
-    --t-muted: #9a9a93;
-    --t-accent: #7b8cff;
-    --t-accent-fg: #0d0d0c;
+    --t-bg: #212121;
+    --t-surface: #2f2f2f;
+    --t-surface-2: #3a3a3a;
+    --t-border: #424242;
+    --t-fg: #ececec;
+    --t-muted: #b4b4b4;
+    --t-accent: #ececec;
+    --t-accent-fg: #0d0d0d;
     --t-ok: #4cc27f;
     --t-warn: #e0a040;
     --t-danger: #ef6b6b;
-    --t-ring: #7b8cff66;
+    --t-ring: #ececec4d;
     color-scheme: dark;
   }
 }
 
 :root[data-theme='dark'] {
-  --t-bg: #141413;
-  --t-surface: #1c1c1b;
-  --t-surface-2: #262624;
-  --t-border: #34342f;
-  --t-fg: #ececea;
-  --t-muted: #9a9a93;
-  --t-accent: #7b8cff;
-  --t-accent-fg: #0d0d0c;
+  --t-bg: #212121;
+  --t-surface: #2f2f2f;
+  --t-surface-2: #3a3a3a;
+  --t-border: #424242;
+  --t-fg: #ececec;
+  --t-muted: #b4b4b4;
+  --t-accent: #ececec;
+  --t-accent-fg: #0d0d0d;
   --t-ok: #4cc27f;
   --t-warn: #e0a040;
   --t-danger: #ef6b6b;
-  --t-ring: #7b8cff66;
+  --t-ring: #ececec4d;
   color-scheme: dark;
 }
 

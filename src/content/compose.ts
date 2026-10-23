@@ -4,6 +4,7 @@ import { diffStats, wordDiff } from '@/compose/diff';
 import { cleanOutput, MODE_LABELS, type ComposeMode } from '@/compose/prompt';
 import { TETHER_UI_ATTRIBUTE } from '@/context/extract';
 import { openStream, type StreamHandle } from '@/lib/ports';
+import { darkRule, themeHost } from './theme';
 
 /**
  * Inline compose: Cmd/Ctrl+K in a text field opens a small popover to
@@ -21,10 +22,9 @@ const STYLE = `
 :host { all: initial; }
 * { box-sizing: border-box; }
 .wrap { position: fixed; z-index: 2147483647; font: 13px/1.45 ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
-  color: #1c1c1a; --bg: #ffffff; --bd: #e3e3df; --mut: #6b6b66; --acc: #3d5afe; --s2: #f2f2f0;
+  color: #0d0d0d; --bg: #ffffff; --bd: #e5e5e5; --mut: #5d5d5d; --acc: #0d0d0d; --accfg: #ffffff; --s2: #f4f4f4;
   --add: #e6f4ea; --addfg: #1b5e20; --del: #fdecea; --delfg: #8e1b1b; }
-@media (prefers-color-scheme: dark) { .wrap { color: #ececea; --bg: #1c1c1b; --bd: #34342f; --mut: #9a9a93; --acc: #7b8cff; --s2: #262624;
-  --add: #1f3a26; --addfg: #a5d6a7; --del: #3d1f1f; --delfg: #ef9a9a; } }
+${darkRule('.wrap', 'color: #ececec; --bg: #2f2f2f; --bd: #424242; --mut: #b4b4b4; --acc: #ececec; --accfg: #0d0d0d; --s2: #3a3a3a; --add: #1f3a26; --addfg: #a5d6a7; --del: #3d1f1f; --delfg: #ef9a9a;')}
 .card { width: min(460px, calc(100vw - 16px)); max-height: min(60vh, 520px); display: flex; flex-direction: column;
   background: var(--bg); border: 1px solid var(--bd); border-radius: 12px; box-shadow: 0 10px 32px rgba(0,0,0,.22); }
 .head { display: flex; align-items: baseline; gap: 8px; padding: 8px 10px 0; }
@@ -37,7 +37,7 @@ const STYLE = `
 button { all: unset; cursor: pointer; padding: 4px 8px; border-radius: 7px; font-size: 12px; color: inherit; white-space: nowrap; }
 button:hover, button:focus-visible { background: var(--s2); }
 button:focus-visible { outline: 2px solid var(--acc); outline-offset: -2px; }
-button.primary { background: var(--acc); color: #fff; }
+button.primary { background: var(--acc); color: var(--accfg); }
 button[disabled] { opacity: .45; cursor: default; }
 .result { border-top: 1px solid var(--bd); padding: 8px 10px; overflow: auto; white-space: pre-wrap; word-wrap: break-word; }
 .status { color: var(--mut); font-size: 12px; }
@@ -272,6 +272,7 @@ export interface ComposeHandle {
 
 export function installCompose(opts: ComposeOptions): ComposeHandle {
   let host: HTMLElement | null = null;
+  let releaseTheme: (() => void) | undefined;
   let wrap: HTMLDivElement | null = null;
   let target: EditTarget | null = null;
   let stream: StreamHandle<'compose'> | undefined;
@@ -289,8 +290,10 @@ export function installCompose(opts: ComposeOptions): ComposeHandle {
 
   const ensureHost = () => {
     if (host?.isConnected && wrap) return wrap;
+    releaseTheme?.();
     host = document.createElement('tether-compose');
     host.setAttribute(TETHER_UI_ATTRIBUTE, '');
+    releaseTheme = themeHost(host);
     const root = host.attachShadow({ mode: opts.shadowMode ?? 'closed' });
     const style = el('style');
     style.textContent = STYLE;
@@ -567,6 +570,7 @@ export function installCompose(opts: ComposeOptions): ComposeHandle {
       window.removeEventListener('keydown', onKey, true);
       document.removeEventListener('mousedown', onMouseDown, true);
       host?.remove();
+      releaseTheme?.();
       host = null;
       wrap = null;
     },
