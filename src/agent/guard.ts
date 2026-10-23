@@ -144,8 +144,22 @@ export function checkUrl(raw: string, policy: DomainPolicy): UrlVerdict {
 }
 
 /** Bare domains from the model ("example.com/x") get https://. */
-export function normalizeAgentUrl(raw: string): string {
+export function normalizeAgentUrl(raw: string, base?: string): string {
   const s = raw.trim();
-  if (/^[a-z][a-z0-9+.-]*:/i.test(s)) return s;
+  // "localhost:8080/x" looks like a scheme but is a host and port.
+  if (/^[a-z][a-z0-9+.-]*:/i.test(s) && !/^localhost:\d/i.test(s)) return s;
+  // "/x", "./x" and "shop/x.html" (a first segment that can't be a host) are
+  // paths on the current site, not domains: small models drop the origin.
+  const first = s.replace(/^\/+/, '').split(/[/?#]/)[0] ?? '';
+  const isPath =
+    /^\.{0,2}\//.test(s) || (!first.includes('.') && !/^localhost(:\d+)?$/i.test(first));
+  if (isPath) {
+    if (!base) return s;
+    try {
+      return new URL(s, base).href;
+    } catch {
+      return s;
+    }
+  }
   return `https://${s.replace(/^\/+/, '')}`;
 }

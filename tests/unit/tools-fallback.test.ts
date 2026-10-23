@@ -123,6 +123,15 @@ describe('python-style calls', () => {
     return r.call;
   };
 
+  it('reads name: value arguments as keywords (seen from llama3.2:3b)', () => {
+    expect(call('type(id: "4", text: "boots")')).toMatchObject({
+      name: 'type',
+      args: { id: 4, text: 'boots' },
+    });
+    // A URL's "://" isn't a keyword separator.
+    expect(call('navigate("http://a.test/x")').args).toEqual({ url: 'http://a.test/x' });
+  });
+
   it('reads keyword and positional args with Python literals', () => {
     expect(call('type(1, "it\'s \\"quoted\\"", submit=True)')).toMatchObject({
       name: 'type',

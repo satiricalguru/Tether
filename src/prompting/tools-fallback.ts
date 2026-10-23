@@ -361,7 +361,8 @@ class PyParser {
         this.i++;
         return { positional, keyword };
       }
-      const kw = /^([A-Za-z_]\w*)\s*=(?!=)/.exec(this.s.slice(this.i));
+      // name=value, and name: value (small models mix in JSON/YAML habits).
+      const kw = /^([A-Za-z_]\w*)\s*(?:=(?!=)|:(?!\/\/))/.exec(this.s.slice(this.i));
       if (kw) {
         this.i += kw[0].length;
         keyword[kw[1] ?? ''] = this.value();

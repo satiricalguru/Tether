@@ -396,6 +396,22 @@ describe('guard', () => {
   it('normalizes bare domains', () => {
     expect(normalizeAgentUrl('example.com/a')).toBe('https://example.com/a');
     expect(normalizeAgentUrl('http://x.test')).toBe('http://x.test');
+    expect(normalizeAgentUrl('localhost:8080/a')).toBe('https://localhost:8080/a');
+  });
+  it('resolves paths the model gives without an origin against the current page', () => {
+    const here = 'http://127.0.0.1:5000/shop/index.html';
+    expect(normalizeAgentUrl('shop/granite.html', here)).toBe(
+      'http://127.0.0.1:5000/shop/shop/granite.html',
+    );
+    expect(normalizeAgentUrl('/shop/granite.html', here)).toBe(
+      'http://127.0.0.1:5000/shop/granite.html',
+    );
+    expect(normalizeAgentUrl('granite.html', here)).toBe('https://granite.html');
+    expect(normalizeAgentUrl('./granite.html', here)).toBe(
+      'http://127.0.0.1:5000/shop/granite.html',
+    );
+    // Without a page to resolve against, a path stays a path.
+    expect(normalizeAgentUrl('/shop/x.html')).toBe('/shop/x.html');
   });
 });
 
