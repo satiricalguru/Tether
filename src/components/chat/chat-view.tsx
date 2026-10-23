@@ -14,6 +14,7 @@ import { branchConversation, selectBranch, updateConversation } from '@/chat/sto
 import { siblingInfo } from '@/chat/tree';
 import { useChatUi } from '@/chat/ui-store';
 import { activeTab, draftAttachments, loadPageChip, useContextDraft } from '@/chat/context-store';
+import { TetherMark } from '@/components/brand/tether-mark';
 import { ModelPicker } from '@/components/models/model-picker';
 import { isPdfUrl } from '@/context/pdf-url';
 import { fitAttachments, useContextBudget } from '@/hooks/use-context-budget';
@@ -180,7 +181,8 @@ export function ChatView() {
       >
         {thread.length === 0 ? (
           <div className="flex h-full flex-col items-center justify-center gap-3 text-center">
-            <p className="text-sm font-medium">What can I help with?</p>
+            <TetherMark size={44} className="text-fg" />
+            <p className="text-base font-semibold">What can I help with?</p>
             <p className="max-w-64 text-xs text-muted">
               Everything runs on your machine. Nothing you type leaves this computer.
             </p>

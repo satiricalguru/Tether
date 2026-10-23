@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import { AppProviders } from '@/components/app-providers';
+import { TetherMark } from '@/components/brand/tether-mark';
 import { ProvidersSection } from '@/components/providers/providers-section';
 import { ChatSection } from '@/components/settings/chat-section';
 import { DataSection } from '@/components/settings/data-section';
@@ -53,7 +54,9 @@ function Options() {
 
   return (
     <div className="mx-auto max-w-2xl px-4 py-8">
-      <h1 className="mb-1 text-xl font-semibold tracking-tight">Tether settings</h1>
+      <h1 className="mb-1 flex items-center gap-2 text-xl font-semibold tracking-tight">
+        <TetherMark size={28} /> Tether settings
+      </h1>
       <p className="mb-6 text-sm text-muted">
         Everything here is stored locally in this browser profile.
       </p>

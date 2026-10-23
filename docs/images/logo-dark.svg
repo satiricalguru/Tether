@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+  <title>Tether</title>
+  <defs>
+    <mask id="da"><rect width="128" height="128" fill="#fff"/><circle cx="64" cy="84.00" r="8.0" fill="#000"/></mask>
+    <mask id="db"><rect width="128" height="128" fill="#fff"/><circle cx="64" cy="44.00" r="8.0" fill="#000"/></mask>
+  </defs>
+  <g fill="none" stroke="#ececec" stroke-width="10" stroke-linecap="round">
+    <circle cx="49" cy="64" r="25" mask="url(#da)"/>
+    <circle cx="79" cy="64" r="25" mask="url(#db)"/>
+  </g>
+</svg>

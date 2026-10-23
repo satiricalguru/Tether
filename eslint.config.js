@@ -8,6 +8,8 @@ export default tseslint.config(
     ignores: [
       '.output/**',
       '.output-eval/**',
+      // Dev-only helpers (release, icon rendering); not part of the extension.
+      'scripts/**',
       '.wxt/**',
       'node_modules/**',
       'playwright-report/**',
