@@ -75,8 +75,9 @@ test.describe('local RAG', () => {
       await expect(page.getByTestId('msg-assistant').last()).toHaveAttribute('data-status', 'done');
       const newEmbeds = mock.requests.filter((r) => r.path === '/api/embed').slice(embedsBefore);
       expect(newEmbeds).toHaveLength(1);
+      // nomic-embed-text gets its retrieval task prefix (see taskPrefixes).
       expect((newEmbeds[0]?.body as { input: string[] }).input).toEqual([
-        'Where do I pay the parking permit?',
+        'search_query: Where do I pay the parking permit?',
       ]);
     } finally {
       await mock.close();

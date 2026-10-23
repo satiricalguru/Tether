@@ -92,6 +92,18 @@ export interface FitItem {
   share: number;
 }
 
+/**
+ * Retrieval-trained models expect their task prefixes on every input; without
+ * them, query and document vectors land in different regions. These are the
+ * model cards' own strings.
+ */
+export function taskPrefixes(model: string): { document: string; query: string } | null {
+  if (/nomic-embed/i.test(model)) return { document: 'search_document: ', query: 'search_query: ' };
+  if (/embeddinggemma/i.test(model))
+    return { document: 'title: none | text: ', query: 'task: search result | query: ' };
+  return null;
+}
+
 export function ragHandlers(registry: ProviderRegistry): HandlerMap {
   const modelFor = async (instanceId: string): Promise<string | undefined> => {
     const s = await getSettings();
@@ -123,16 +135,21 @@ export function ragHandlers(registry: ProviderRegistry): HandlerMap {
           try {
             const contentHash = await sha256(a.text);
             const url = a.url ?? `attachment:${a.kind}:${a.title}`;
+            const task = taskPrefixes(model);
             return await fitByRetrieval(a, share, question, {
               model,
-              // The chunk size is part of what was embedded.
+              // The chunk size and task prefix are part of what was embedded.
               embedChunks: (chunks, size) =>
                 cachedChunkVectors(
-                  { url, contentHash: `${contentHash}@${size}`, model },
+                  { url, contentHash: `${contentHash}@${size}${task ? '@task' : ''}`, model },
                   chunks,
-                  (t) => embed(t, model),
+                  (t) =>
+                    embed(
+                      t.map((x) => `${task?.document ?? ''}${x}`),
+                      model,
+                    ),
                 ),
-              embedQuery: async (q) => (await embed([q], model))[0] ?? [],
+              embedQuery: async (q) => (await embed([`${task?.query ?? ''}${q}`], model))[0] ?? [],
             });
           } catch (err) {
             log.warn('retrieval failed; cutting from the top instead', err);

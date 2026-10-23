@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { cachedChunkVectors, pickEmbeddingModel } from '@/background/rag';
+import { cachedChunkVectors, pickEmbeddingModel, taskPrefixes } from '@/background/rag';
 import type { Attachment } from '@/context/attachments';
 import { estimateTokens } from '@/context/tokens';
 import { getDb } from '@/lib/db';
@@ -195,5 +195,16 @@ describe('cachedChunkVectors', () => {
     await cachedChunkVectors({ url: 'u', contentHash: 'new', model: 'm' }, chunks, embed);
     const rows = await getDb().embeddings.where('url').equals('u').toArray();
     expect(new Set(rows.map((r) => r.contentHash))).toEqual(new Set(['new']));
+  });
+});
+
+describe('taskPrefixes', () => {
+  it('uses each retrieval model’s own prefixes, and none for others', () => {
+    expect(taskPrefixes('nomic-embed-text:latest')).toEqual({
+      document: 'search_document: ',
+      query: 'search_query: ',
+    });
+    expect(taskPrefixes('embeddinggemma')?.query).toBe('task: search result | query: ');
+    expect(taskPrefixes('bge-m3')).toBeNull();
   });
 });
