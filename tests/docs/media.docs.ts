@@ -20,6 +20,14 @@ mkdirSync(OUT, { recursive: true });
 
 const shot = (page: Page, name: string) => page.screenshot({ path: resolve(OUT, `${name}.png`) });
 
+async function setTheme(serviceWorker: Worker, theme: 'light' | 'dark' | 'system') {
+  await serviceWorker.evaluate(async (t) => {
+    const key = 'tether:settings';
+    const s = (await chrome.storage.local.get(key))[key] as Record<string, unknown>;
+    await chrome.storage.local.set({ [key]: { ...s, theme: t } });
+  }, theme);
+}
+
 async function useModel(serviceWorker: Worker, url: string, model = 'llama3.2:3b') {
   await configureProviders(serviceWorker, [
     { instanceId: 'ollama', kind: 'ollama', label: 'Ollama', baseUrl: url },
@@ -58,6 +66,10 @@ test('chat with page context', async ({ context, page, extensionUrl, serviceWork
     await page.getByRole('button', { name: 'Send', exact: true }).click();
     await expect(page.getByTestId('msg-assistant')).toHaveAttribute('data-status', 'done');
     await shot(page, 'chat-page-context');
+    await setTheme(serviceWorker, 'dark');
+    await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+    await shot(page, 'chat-page-context-dark');
+    await setTheme(serviceWorker, 'system');
   } finally {
     await mock.close();
   }
@@ -120,6 +132,14 @@ test('inline compose', async ({ context, serviceWorker, sitesUrl }) => {
       .poll(() => site.locator('tether-compose').getAttribute('data-state'), { timeout: 10_000 })
       .toBe('ready');
     await shot(site, 'inline-compose');
+    await setTheme(serviceWorker, 'dark');
+    await expect(site.locator('tether-compose')).toHaveAttribute('data-theme', 'dark');
+    await site.evaluate(() => {
+      document.documentElement.style.background = '#181818';
+      document.body.style.color = '#e5e5e5';
+    });
+    await shot(site, 'inline-compose-dark');
+    await setTheme(serviceWorker, 'system');
   } finally {
     await mock.close();
   }

@@ -710,3 +710,16 @@ as their model cards require.
 ### ADR-067 Dependencies added in Phase 7
 
 None.
+
+### ADR-068 A monochrome brand and palette
+
+The mark is two interlocked links, Tether's name taken literally, drawn as
+a single-colour line mark. The README carries light and dark variants via
+`<picture>`, and the app icon is white on a near-black rounded square. The
+geometry lives in `scripts/logo.py`, mirrored by `TetherMark` in the UI.
+The UI palette is neutral: an accent of near-black on white in light mode
+and near-white on #212121 in dark, so primary buttons invert like the rest.
+Status colours (ok, warn, danger) keep their hues. The bubble and compose
+popover now follow the theme setting too, not only the OS, through
+`data-theme` on their shadow hosts. The agent's action flash stays blue so
+it stands out on any page.
