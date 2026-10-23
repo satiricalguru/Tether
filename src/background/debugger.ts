@@ -1,5 +1,6 @@
 import { browser } from 'wxt/browser';
 import type { ElementPoint } from '@/agent/page/types';
+import { platform } from '@/platform/capabilities';
 
 /**
  * Trusted input via the Chrome DevTools protocol (optional `debugger`
@@ -12,11 +13,27 @@ const VERSION = '1.3';
 const attached = new Set<number>();
 
 export async function debuggerAvailable(): Promise<boolean> {
+  // Firefox has no debugger API; never ask about a permission it doesn't know.
+  if (!platform.debuggerPermission) return false;
   try {
     return await browser.permissions.contains({ permissions: ['debugger'] });
   } catch {
     return false;
   }
+}
+
+let watching = false;
+/**
+ * Forget tabs the user (or Chrome) detached. Registered on first attach: the
+ * API exists only after the optional permission is granted, and never on
+ * Firefox.
+ */
+function watchDetach(): void {
+  if (watching) return;
+  watching = true;
+  browser.debugger.onDetach.addListener((source) => {
+    if (source.tabId !== undefined) attached.delete(source.tabId);
+  });
 }
 
 async function send(
@@ -25,6 +42,7 @@ async function send(
   params: Record<string, unknown> = {},
 ): Promise<unknown> {
   if (!attached.has(tabId)) {
+    watchDetach();
     await browser.debugger.attach({ tabId }, VERSION);
     attached.add(tabId);
   }
@@ -39,12 +57,6 @@ export async function detachAll(): Promise<void> {
     }),
   );
 }
-
-// Undefined until the optional permission is granted.
-// eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-browser.debugger?.onDetach.addListener((source) => {
-  if (source.tabId !== undefined) attached.delete(source.tabId);
-});
 
 export async function cdpMouse(
   tabId: number,

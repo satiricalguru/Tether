@@ -12,6 +12,7 @@
  */
 
 import type { AgentEvent, RunResult } from '@/agent/loop';
+import type { SetOfMarksRequest, SetOfMarksResult } from '@/agent/vision/draw';
 import type {
   ActResult,
   ElementPoint,
@@ -96,6 +97,8 @@ export interface MessageMap {
   /** From the page banner or Esc in a controlled tab. */
   'bg:agent:stop': { req: { runId?: string }; res: { stopped: boolean } };
   'offscreen:ping': { req: undefined; res: PingResponse };
+  /** Vision tier: draw numbered boxes on a tab screenshot and downscale it. */
+  'offscreen:som': { req: SetOfMarksRequest; res: SetOfMarksResult };
 }
 
 export type TabAccess = 'granted' | 'needs-permission' | 'restricted';

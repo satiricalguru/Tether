@@ -4,16 +4,28 @@ import { platform } from './capabilities';
 /** Firefox's sidebar API isn't in @types/chrome; this is the subset we use. */
 interface SidebarAction {
   open(): Promise<void>;
+  toggle(): Promise<void>;
 }
+
+const sidebarAction = () => (browser as unknown as { sidebarAction: SidebarAction }).sidebarAction;
 
 /**
  * Make the toolbar button (and the `_execute_action` shortcut) open the panel.
- * Firefox wires `_execute_sidebar_action` in the manifest instead, so there is
- * nothing to do there.
+ * Firefox wires the shortcut as `_execute_sidebar_action` in the manifest; its
+ * toolbar button has no popup, so a click fires `action.onClicked`, and the
+ * sidebar is toggled right there, inside the user gesture. Call on every
+ * background start: the listener is registered synchronously.
  */
 export async function configurePanelBehavior(): Promise<void> {
-  if (!platform.sidePanel) return;
-  await browser.sidePanel.setPanelBehavior({ openPanelOnActionClick: true });
+  if (platform.sidePanel) {
+    await browser.sidePanel.setPanelBehavior({ openPanelOnActionClick: true });
+    return;
+  }
+  if (platform.sidebarAction) {
+    browser.action.onClicked.addListener(() => {
+      void sidebarAction().toggle();
+    });
+  }
 }
 
 /**
@@ -26,8 +38,8 @@ export async function openPanel(windowId: number): Promise<void> {
     return;
   }
   if (platform.sidebarAction) {
-    const sidebar = (browser as unknown as { sidebarAction: SidebarAction }).sidebarAction;
-    await sidebar.open();
+    // Called before any await, so Firefox still sees the user gesture.
+    await sidebarAction().open();
     return;
   }
   // No panel API at all: fall back to the panel page in a tab.

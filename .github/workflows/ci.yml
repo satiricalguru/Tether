@@ -27,7 +27,7 @@ jobs:
       - run: pnpm test
       - run: pnpm build
       - run: pnpm test:bundle
-      - run: pnpm build:firefox
+      - run: pnpm test:firefox
       - name: Install Playwright Chromium
         run: pnpm exec playwright install --with-deps chromium
       - name: E2E

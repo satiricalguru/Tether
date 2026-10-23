@@ -59,6 +59,7 @@ export function classify(call: ToolCall, target: SnapshotElement | undefined): V
   switch (call.name) {
     case 'extract':
     case 'waitFor':
+    case 'screenshot':
     case 'scroll':
     case 'hover':
     case 'askUser':

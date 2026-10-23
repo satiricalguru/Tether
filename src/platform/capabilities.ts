@@ -25,6 +25,18 @@ export const platform = {
   get offscreen(): boolean {
     return has('offscreen.createDocument');
   },
+  /**
+   * Whether this build can ask for the `debugger` permission at all (Chromium
+   * lists it as optional; Firefox has no such API). Unlike `debuggerApi`,
+   * this is true before the grant.
+   */
+  get debuggerPermission(): boolean {
+    try {
+      return (browser.runtime.getManifest().optional_permissions ?? []).includes('debugger');
+    } catch {
+      return false;
+    }
+  },
   /** `debugger` is an optional permission, so the API may appear only after a grant. */
   get debuggerApi(): boolean {
     return has('debugger.attach');

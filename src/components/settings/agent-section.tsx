@@ -1,5 +1,5 @@
 import { AlertTriangle, Plus, Trash2 } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { browser } from 'wxt/browser';
 import { checkUrl } from '@/agent/guard';
 import { Button } from '@/components/ui/button';
@@ -7,6 +7,7 @@ import { Card, CardTitle } from '@/components/ui/card';
 import { Input, Label } from '@/components/ui/input';
 import { useSettings } from '@/hooks/use-settings';
 import type { ToolTierSetting } from '@/lib/settings';
+import { platform } from '@/platform/capabilities';
 import { NumberField, SwitchRow } from './fields';
 
 const TIERS: { value: ToolTierSetting; label: string; hint: string }[] = [
@@ -89,11 +90,42 @@ function DomainList({
   );
 }
 
+/** Whether Tether holds the optional all-sites grant, kept live. */
+function useAllSitesAccess(): boolean {
+  const [granted, setGranted] = useState(false);
+  useEffect(() => {
+    const check = () => {
+      void browser.permissions
+        .contains({ origins: ['<all_urls>'] })
+        .then(setGranted)
+        .catch(() => undefined);
+    };
+    check();
+    browser.permissions.onAdded.addListener(check);
+    browser.permissions.onRemoved.addListener(check);
+    return () => {
+      browser.permissions.onAdded.removeListener(check);
+      browser.permissions.onRemoved.removeListener(check);
+    };
+  }, []);
+  return granted;
+}
+
 export function AgentSection() {
   const { settings, update } = useSettings();
+  const allSites = useAllSitesAccess();
   if (!settings) return null;
   const a = settings.agent;
   const set = (patch: Partial<typeof a>) => void update({ agent: patch });
+
+  // Turning screenshots on asks for all-sites access in the same click:
+  // Chrome captures a tab only with it, or on the tab Tether was opened from.
+  const chooseVision = async (on: boolean) => {
+    set({ vision: on });
+    if (on && !allSites) {
+      await browser.permissions.request({ origins: ['<all_urls>'] }).catch(() => false);
+    }
+  };
 
   const chooseBackend = async (backend: 'scripting' | 'debugger') => {
     if (backend === 'debugger') {
@@ -136,6 +168,33 @@ export function AgentSection() {
             onChange={(v) => set({ critique: v })}
           />
         </div>
+        <div className="mt-3" data-testid="vision-settings">
+          <SwitchRow
+            label="Show the model screenshots"
+            description="For models with vision only: each step also sends a screenshot with the element numbers drawn on it. It helps on visual pages, but an image costs several hundred prompt tokens and noticeably slower steps on small machines. The model still answers with element numbers, never screen positions."
+            checked={a.vision}
+            onChange={(v) => void chooseVision(v)}
+          />
+          {a.vision && (
+            <p className="mt-1 text-xs text-muted" data-testid="vision-access">
+              {allSites
+                ? 'Tether can capture any tab you allow it to visit.'
+                : 'Without access to all sites, screenshots work only on the tab you opened Tether from; other steps use the page text.'}
+            </p>
+          )}
+          {a.vision && (
+            <div className="mt-2 max-w-48">
+              <NumberField
+                id="a-vision-side"
+                label="Screenshot size (long side, px)"
+                value={a.visionMaxSide}
+                min={256}
+                max={2048}
+                onCommit={(v) => set({ visionMaxSide: v })}
+              />
+            </div>
+          )}
+        </div>
       </Card>
 
       <Card>
@@ -157,24 +216,31 @@ export function AgentSection() {
               </span>
             </span>
           </label>
-          <label className="flex cursor-pointer items-start gap-2 text-sm">
-            <input
-              type="radio"
-              name="backend"
-              checked={a.inputBackend === 'debugger'}
-              onChange={() => void chooseBackend('debugger')}
-              className="mt-1 accent-accent"
-            />
-            <span>
-              Trusted input (debugger)
-              <span className="block text-xs text-muted">
-                For sites that ignore scripted clicks, canvas apps and file pickers. Needs the
-                “debugger” permission; while the agent runs, Chrome shows a “Tether started
-                debugging this browser” bar. You can cancel it there at any time, which also stops
-                trusted input.
+          {platform.debuggerPermission ? (
+            <label className="flex cursor-pointer items-start gap-2 text-sm">
+              <input
+                type="radio"
+                name="backend"
+                checked={a.inputBackend === 'debugger'}
+                onChange={() => void chooseBackend('debugger')}
+                className="mt-1 accent-accent"
+              />
+              <span>
+                Trusted input (debugger)
+                <span className="block text-xs text-muted">
+                  For sites that ignore scripted clicks, canvas apps and file pickers. Needs the
+                  “debugger” permission; while the agent runs, Chrome shows a “Tether started
+                  debugging this browser” bar. You can cancel it there at any time, which also stops
+                  trusted input.
+                </span>
               </span>
-            </span>
-          </label>
+            </label>
+          ) : (
+            <p className="text-xs text-muted" data-testid="no-trusted-input">
+              Trusted input isn’t available in this browser: it relies on Chrome’s debugger API.
+              Scripted events are used everywhere.
+            </p>
+          )}
         </fieldset>
       </Card>
 

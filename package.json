@@ -15,6 +15,7 @@
     "build:firefox": "wxt build -b firefox --mv3",
     "zip": "wxt zip",
     "zip:firefox": "wxt zip -b firefox --mv3",
+    "release": "bash scripts/release.sh",
     "postinstall": "wxt prepare",
     "typecheck": "tsc --noEmit",
     "lint": "eslint . --max-warnings 0",
@@ -23,10 +24,12 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "e2e": "wxt build && playwright test",
-    "check": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test && pnpm build && pnpm test:bundle",
+    "check": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test && pnpm build && pnpm test:bundle && pnpm test:firefox",
     "mock-llm": "node --experimental-strip-types tests/fixtures/mock-llm/cli.ts",
     "test:bundle": "vitest run --config vitest.bundle.config.ts",
+    "test:firefox": "wxt build -b firefox --mv3 && TETHER_BUNDLE=firefox-mv3 vitest run --config vitest.bundle.config.ts",
     "e2e:real": "wxt build && TETHER_REAL_OLLAMA=1 playwright test real-ollama",
+    "docs:media": "wxt build && playwright test --config playwright.docs.config.ts",
     "eval": "TETHER_OUT_DIR=.output-eval wxt build && TETHER_OUT_DIR=.output-eval playwright test --config playwright.eval.config.ts"
   },
   "dependencies": {

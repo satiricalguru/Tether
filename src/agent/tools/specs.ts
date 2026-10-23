@@ -102,7 +102,7 @@ export function specByName(tools: ToolSpec[], name: string): ToolSpec | undefine
 
 const ID = { type: 'string' as const, description: 'Element id, e.g. 12 or 3.12' };
 
-/** Phase 5: the full action space (spec §6.2), except screenshot (vision tier, Phase 7). */
+/** Phase 5: the full action space (spec §6.2); `screenshot` is added for the vision tier. */
 export const COMPUTER_TOOLS: ToolSpec[] = [
   {
     name: 'navigate',
@@ -231,9 +231,22 @@ const EXTRA_TOOLS = new Set([
   'hover',
 ]);
 
-/** The computer-use tool set for a model window: the core 14 up to 8K tokens, all 21 above. */
-export function computerTools(window: number): ToolSpec[] {
-  return window > 8192 ? COMPUTER_TOOLS : COMPUTER_TOOLS.filter((t) => !EXTRA_TOOLS.has(t.name));
+/** Vision tier only (spec §6.5): refresh the screenshot without acting. */
+export const SCREENSHOT_TOOL: ToolSpec = {
+  name: 'screenshot',
+  description:
+    'Look at the page again: the next step comes with a fresh screenshot. Use it after the page changed on its own (an animation, a slow load).',
+  parameters: { type: 'object', properties: {} },
+};
+
+/**
+ * The computer-use tool set for a model window: the core 14 up to 8K tokens,
+ * all 21 above, plus `screenshot` when the vision tier is on.
+ */
+export function computerTools(window: number, vision = false): ToolSpec[] {
+  const base =
+    window > 8192 ? COMPUTER_TOOLS : COMPUTER_TOOLS.filter((t) => !EXTRA_TOOLS.has(t.name));
+  return vision ? [...base, SCREENSHOT_TOOL] : base;
 }
 
 /** Tools whose `id` argument must exist in the current snapshot. */

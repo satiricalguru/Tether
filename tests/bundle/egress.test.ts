@@ -9,7 +9,9 @@ import { describe, expect, it } from 'vitest';
  * Adding a new host means adding it here, with a reason, in review.
  */
 
-const OUT = resolve(import.meta.dirname, '../../.output/chrome-mv3');
+/** Which build to scan: `chrome-mv3` (default) or `firefox-mv3` (`pnpm test:firefox`). */
+const BUNDLE = process.env.TETHER_BUNDLE ?? 'chrome-mv3';
+const OUT = resolve(import.meta.dirname, '../..', process.env.TETHER_OUT_DIR ?? '.output', BUNDLE);
 
 const LOCAL = /^https?:\/\/(127\.0\.0\.1|localhost|\[::1\])(:\d*)?(\/|$)/;
 
@@ -63,7 +65,9 @@ const NEVER_FETCHED: { pattern: RegExp; reason: string; file?: RegExp }[] = [
     pattern: /^https:\/\/\$\{\w+\.replace\(\/\^$/,
     reason:
       'normalizeAgentUrl adds a scheme to a model-chosen URL for tab navigation: browsing on the user’s behalf, gated by the agent URL guard, not a request Tether makes',
-    file: /^(background\.js|chunks\/guard-[\w-]+\.js)$/,
+    // Rollup names the chunk shared by the background and the settings page
+    // after one of its modules: the guard's, or src/platform/capabilities'.
+    file: /^(background\.js|chunks\/(guard|capabilities)-[\w-]+\.js)$/,
   },
   {
     pattern: /^https:\/\/\$\{\w+\.replace\(\/\^$/,
@@ -87,7 +91,7 @@ function files(dir: string): string[] {
 
 const URL_RE = /\b(?:https?|wss?):\/\/[^\s"'`)\\<>]*/g;
 
-describe('built bundle', () => {
+describe(`built bundle (${BUNDLE})`, () => {
   it('exists (run `pnpm build` first)', () => {
     expect(existsSync(join(OUT, 'manifest.json'))).toBe(true);
   });

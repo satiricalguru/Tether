@@ -1,4 +1,7 @@
 import { browser, type Browser } from 'wxt/browser';
+import { sendMessage, type Handler, type MessageSender } from '@/lib/messaging';
+import type { MessageRequest, MessageResponse, MessageType } from '@/lib/protocol';
+import { OFFSCREEN_HANDLERS } from '@/offscreen/handlers';
 import { platform } from './capabilities';
 
 const OFFSCREEN_PATH = '/offscreen.html';
@@ -40,4 +43,28 @@ export async function ensureOffscreen(
 export async function closeOffscreen(): Promise<void> {
   if (!platform.offscreen) return;
   if (await browser.offscreen.hasDocument()) await browser.offscreen.closeDocument();
+}
+
+export type OffscreenMessage = Extract<MessageType, `offscreen:${string}`>;
+
+/**
+ * Run an `offscreen:*` handler wherever this browser has a DOM for it: in
+ * the offscreen document (Chromium, created on demand), or in place in the
+ * background page (Firefox).
+ */
+export async function callOffscreen<K extends OffscreenMessage>(
+  type: K,
+  payload: MessageRequest<K>,
+  why: { reasons: `${Browser.offscreen.Reason}`[]; justification: string },
+): Promise<MessageResponse<K>> {
+  if (await ensureOffscreen(why.reasons, why.justification)) {
+    return (sendMessage as (t: K, p: MessageRequest<K>) => Promise<MessageResponse<K>>)(
+      type,
+      payload,
+    );
+  }
+  const handler: Handler<K> | undefined = OFFSCREEN_HANDLERS[type];
+  if (!handler) throw new Error(`No offscreen handler for ${type}`);
+  const self: MessageSender = { id: browser.runtime.id };
+  return handler(payload, self);
 }

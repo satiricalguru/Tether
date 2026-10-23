@@ -126,6 +126,14 @@ export function RunsSection() {
                           <span className="block truncate text-muted" title={s.url}>
                             {s.url}
                           </span>
+                          {s.thumbnail?.startsWith('data:image/jpeg;base64,') && (
+                            <img
+                              src={s.thumbnail}
+                              alt={`What the model saw at step ${s.step}`}
+                              className="mt-1 max-h-40 max-w-full rounded border border-border"
+                              data-testid="run-step-thumbnail"
+                            />
+                          )}
                         </td>
                         <td className="py-1 text-muted">
                           {s.beforeHash && s.afterHash

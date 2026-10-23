@@ -71,6 +71,10 @@ export interface AgentPrefs {
   inputBackend: 'scripting' | 'debugger';
   /** Ask the model to check its answer against the final page before finishing. */
   critique: boolean;
+  /** Send a set-of-marks screenshot each step when the model has vision (spec §6.5). */
+  vision: boolean;
+  /** Long side, in px, of the screenshot sent to the model. */
+  visionMaxSide: number;
 }
 
 export interface ModelSelection {
@@ -124,6 +128,8 @@ export const DEFAULT_SETTINGS: Settings = {
     blockDomains: [],
     inputBackend: 'scripting',
     critique: true,
+    vision: false,
+    visionMaxSide: 1024,
   },
 };
 

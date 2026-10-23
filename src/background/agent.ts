@@ -7,7 +7,14 @@ import {
   type ConfirmRequest,
   type RunResult,
 } from '@/agent/loop';
-import { browserTabs, type AgentContext, type PageApi } from '@/agent/tools/execute';
+import {
+  browserTabs,
+  type AgentContext,
+  type PageApi,
+  type VisionApi,
+} from '@/agent/tools/execute';
+import { imageTokens } from '@/agent/vision/marks';
+import { composeSetOfMarks } from '@/platform/som';
 import type { ActResult, PageAction } from '@/agent/page/types';
 import { computerTools } from '@/agent/tools/specs';
 import { dbTraceSink } from '@/agent/trace';
@@ -136,6 +143,35 @@ function pageApi(backend: 'scripting' | 'debugger', onFallback: (why: string) =>
   };
 }
 
+/** Capture the visible tab and draw the snapshot's ids on it (spec §6.5). */
+function visionApi(maxSide: number): VisionApi {
+  return {
+    capture: async (tabId, snap) => {
+      const tab = await browser.tabs.get(tabId);
+      // captureVisibleTab only sees the active tab of a window.
+      if (!tab.active) throw new Error('the tab isn’t the visible one in its window');
+      const screenshot = await browser.tabs
+        .captureVisibleTab(tab.windowId, { format: 'jpeg', quality: 85 })
+        .catch((err: unknown) => {
+          // Chrome allows capture only with all-sites access or activeTab
+          // (granted when Tether is opened from this tab).
+          if (/all_urls|activeTab/.test((err as Error).message)) {
+            throw new Error(
+              'screenshots need access to all sites (Settings → Agent), or Tether opened from this tab',
+            );
+          }
+          throw err;
+        });
+      return composeSetOfMarks({
+        screenshot,
+        elements: snap.elements,
+        viewportHeight: snap.scroll.viewport,
+        maxSide,
+      });
+    },
+  };
+}
+
 export function createAgentStream(deps: {
   chat: StreamHandler<'chat'>;
   capabilities: (instanceId: string, model: string) => Promise<Capabilities>;
@@ -152,13 +188,16 @@ export function createAgentStream(deps: {
       : await deps.runtimeContext?.(req.instanceId, req.model).catch(() => undefined);
     const window =
       settings.generation.numCtx || (running ?? Math.min(caps.contextLength || 4096, 4096));
-    const tools = computerTools(window);
+    // Vision tier (spec §6.5): opt-in, and only for models that report vision.
+    const vision = settings.agent.vision && caps.vision;
+    const tools = computerTools(window, vision);
     // The tier isn't known until the loop starts; budget for the largest
     // prompt: native (system prompt + tool schemas) or text (tools inline).
-    const fixed = Math.max(
-      estimateTokens(agentSystemPrompt('native', tools)) + estimateTokens(JSON.stringify(tools)),
-      estimateTokens(agentSystemPrompt('text', tools)),
-    );
+    const fixed =
+      Math.max(
+        estimateTokens(agentSystemPrompt('native', tools)) + estimateTokens(JSON.stringify(tools)),
+        estimateTokens(agentSystemPrompt('text', tools)),
+      ) + (vision ? imageTokens(settings.agent.visionMaxSide) : 0);
     const budgets = agentBudgets(window, fixed);
     const complete = completer(deps.chat);
     const events: AgentEvent[] = [];
@@ -216,6 +255,7 @@ export function createAgentStream(deps: {
       page: pageApi(settings.agent.inputBackend, (why) => {
         emit({ type: 'warning', message: why });
       }),
+      ...(vision ? { vision: visionApi(settings.agent.visionMaxSide) } : {}),
     };
 
     // Keep the banner on whichever tab the agent is driving.

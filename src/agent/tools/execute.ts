@@ -6,6 +6,7 @@ import { truncateToTokens } from '@/context/budget';
 import { checkUrl, normalizeAgentUrl, type DomainPolicy } from '../guard';
 import type { ActResult, PageAction, PageSnapshot, SnapshotOptions } from '../page/types';
 import type { ToolCall } from '../types';
+import type { SetOfMarksResult } from '../vision/draw';
 import type { ChatRequest } from '@/providers/types';
 
 /** What tools can touch. Injected so the loop is testable without a browser. */
@@ -21,6 +22,13 @@ export interface AgentContext {
   tabs: TabsApi;
   /** The page engine (Phase 5). Without it the agent is read-only. */
   page?: PageApi;
+  /** Vision tier: present only when the model has vision and the user turned it on. */
+  vision?: VisionApi;
+}
+
+export interface VisionApi {
+  /** Capture the visible tab with the snapshot's ids drawn on it. */
+  capture: (tabId: number, snap: PageSnapshot) => Promise<SetOfMarksResult>;
 }
 
 export interface PageApi {
@@ -105,7 +113,8 @@ export interface ToolOutcome {
 const LOAD_TIMEOUT = 20_000;
 
 async function goTo(ctx: AgentContext, raw: string, how: 'same' | 'new'): Promise<ToolOutcome> {
-  const url = normalizeAgentUrl(raw);
+  const here = (await ctx.tabs.list(ctx.windowId)).find((t) => t.id === ctx.tabId)?.url;
+  const url = normalizeAgentUrl(raw, here);
   const verdict = checkUrl(url, ctx.policy);
   if (!verdict.allowed) return { ok: false, summary: `blocked: ${verdict.reason}` };
   if (how === 'new') {
@@ -190,6 +199,12 @@ export async function executeTool(call: ToolCall, ctx: AgentContext): Promise<To
       return goTo(ctx, String(a.url), 'same');
     case 'newTab':
       return goTo(ctx, String(a.url), 'new');
+    case 'screenshot':
+      // The next observation carries a fresh screenshot; nothing to do here.
+      return {
+        ok: true,
+        summary: ctx.vision ? 'took a fresh screenshot' : 'screenshots are off for this run',
+      };
     case 'back': {
       await ctx.tabs.goBack(ctx.tabId, ctx.signal);
       return { ok: true, summary: 'went back' };

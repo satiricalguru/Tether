@@ -2,6 +2,7 @@ import { fence } from '@/context/attachments';
 import { estimateTokens } from '@/context/tokens';
 import { isAbortError } from '@/lib/errors';
 import type { AgentPrefs } from '@/lib/settings';
+import type { ChatMessage, ContentPart } from '@/providers/types';
 import { agentTurnPrompt } from '@/prompting/system';
 import { decide, downgrade, selectTier, type CompleteFn, type ModelRef } from './harness';
 import { argsInline, progressLog, renderObservation } from './observation';
@@ -12,6 +13,8 @@ import { ELEMENT_TOOLS } from './tools/specs';
 import { executeTool, type AgentContext, type ToolOutcome } from './tools/execute';
 import { redactForTrace, type TraceSink } from './trace';
 import type { ToolCall, ToolSpec, ToolTier } from './types';
+import type { SetOfMarksResult } from './vision/draw';
+import { isImageRejection } from './vision/marks';
 
 /**
  * observe → decide → validate → guard → (confirm) → execute → verify, until
@@ -177,6 +180,19 @@ export function textWindow(text: string, scroll: PageSnapshot['scroll'], chars: 
     .join('\n');
 }
 
+/** Words that tell the model how to read the marks: ids, never pixels. */
+export const VISION_NOTE =
+  'The screenshot shows the visible part of the page. Each element from ELEMENTS has a red box labelled with its id. Answer with ids, never with coordinates.';
+
+/** The user turn: text alone, or text plus this step's screenshot. */
+export function turnContent(prompt: string, shot?: SetOfMarksResult): string | ContentPart[] {
+  if (!shot) return prompt;
+  return [
+    { type: 'text', text: `${prompt}\n\n${VISION_NOTE}` },
+    { type: 'image', data: shot.image, mimeType: 'image/jpeg' },
+  ];
+}
+
 export function renderAgentView(
   snap: PageSnapshot,
   tabs: { title: string; url: string; current: boolean }[],
@@ -324,6 +340,8 @@ export async function runAgent(input: RunInput): Promise<RunResult> {
   let n = 0;
   let lastId: string | undefined;
   let cached: Observed | undefined;
+  let vision = !!ctx.vision;
+  let captureWarned = false;
   // Page budgets for this run; shrunk if the server says a step didn't fit.
   const budgets = { contentBudget: input.contentBudget, elementBudget: input.elementBudget };
   let shrinks = 0;
@@ -378,7 +396,23 @@ export async function runAgent(input: RunInput): Promise<RunResult> {
         agentTurnPrompt(input.task, progressLog(log), obs.text) +
         (warning ? `\n\nWARNING: ${warning}` : '');
       warning = '';
-      const turn = [{ role: 'user' as const, content: prompt }];
+      // Vision tier: this step's screenshot only; earlier turns are never resent.
+      let shot: SetOfMarksResult | undefined;
+      if (vision && ctx.vision && obs.snap) {
+        try {
+          shot = await ctx.vision.capture(ctx.tabId, obs.snap);
+        } catch (err) {
+          if (isAbortError(err)) throw err;
+          if (!captureWarned) {
+            captureWarned = true;
+            emit({
+              type: 'warning',
+              message: `Couldn’t take a screenshot (${(err as Error).message}). Continuing with the page text.`,
+            });
+          }
+        }
+      }
+      const turn: ChatMessage[] = [{ role: 'user', content: turnContent(prompt, shot) }];
 
       let decision;
       try {
@@ -401,6 +435,17 @@ export async function runAgent(input: RunInput): Promise<RunResult> {
           },
         });
       } catch (err) {
+        // A model or server that won't take images: drop them for the rest of the run.
+        if (shot && !isAbortError(err) && isImageRejection(err)) {
+          vision = false;
+          emit({
+            type: 'warning',
+            message: 'The model didn’t accept screenshots; continuing with the page text only.',
+          });
+          n -= 1;
+          cached = obs;
+          continue;
+        }
         const code = (err as { code?: string }).code;
         const lower = code === 'E_TOOLS_UNSUPPORTED' ? downgrade(tier, model.caps) : null;
         if (lower) {
@@ -607,6 +652,7 @@ export async function runAgent(input: RunInput): Promise<RunResult> {
         args: redactForTrace(call.args),
         ...(targetName ? { elementName: targetName } : {}),
         ...(obs.snap ? { beforeHash: obs.snap.hash } : {}),
+        ...(shot ? { thumbnail: shot.thumbnail } : {}),
         ...(afterHash ? { afterHash } : {}),
         outcome:
           stepOutcome === 'ok'
